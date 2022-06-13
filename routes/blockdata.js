@@ -7,7 +7,7 @@ var router = express.Router();
 /* Endpoint to get parsed data for graph generation from blockchain */
 router.get('/graphGeneration', function(req, res, next) {
     const d = new Date();
-    const directory = `blocks(${req.query.startblock}-${req.query.endblock})
+    const directory = `blocks_${req.query.startblock}_${req.query.endblock}
         -${d.getMonth()}_${d.getDay()}_${d.getFullYear()}
         -${d.getHours()}_${d.getMinutes()}_${d.getSeconds()}_${d.getMilliseconds()}`;
     execSync( `sh logExtraction.sh ${req.query.startblock} ${req.query.endblock} ${directory}`);
