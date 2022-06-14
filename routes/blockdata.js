@@ -15,19 +15,19 @@ router.get('/graphGeneration', function(req, res, next) {
     const d = new Date();
     // Directory name (blocks, data, time)
     const directory = `b${req.query.startblock}_${req.query.endblock}d${d.getMonth()}_${d.getDay()}_${d.getFullYear()}t${d.getHours()}_${d.getMinutes()}_${d.getSeconds()}_${d.getMilliseconds()}`;
-
-    console.log('Created directory', directory);
+    console.log('Directory name', directory);
 
     execSync('sudo chmod +x  ./blockchain_data/logExtraction.sh');
     console.log('Changed permissions of extraction script');
-    execSync( `sh ./blockchain_data/logExtraction.sh ${req.query.startblock} ${req.query.endblock} ${directory}`, { stdio: 'ignore' });
 
+    execSync( `sh ./blockchain_data/logExtraction.sh ${req.query.startblock} ${req.query.endblock} ${directory}`, { stdio: 'ignore' });
     console.log('Executed shell script');
 
     // Get files in directory (this is needed as specified blocks might not all be part of blockchain)
     const directoryContents = fs.readdirSync(`./blockchain_data/log_store/${directory}`);
     console.log('directoryContents: ', directoryContents);
 
+    // Accumulate all transactions in one array to enable determining conflict graph and attributes
     let accTransactions = [];
 
     for(let i = 0; i<directoryContents.length; i++) {
@@ -37,7 +37,8 @@ router.get('/graphGeneration', function(req, res, next) {
         accTransactions = accTransactions.concat(parsedBlock.transactions);
     }
 
-    // TODO: delete files and directory
+    // Delete directory and contained json files 
+    exec(`rm -r ./blockchain_data/log_store/${directory}`);
 
     // edges = createConflictGraph(accTransactions);
     // attributes = generateAttributes(edges, accTransactions);
