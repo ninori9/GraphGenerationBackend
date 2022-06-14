@@ -7,7 +7,7 @@ var router = express.Router();
 /* Endpoint to get parsed data for graph generation from blockchain */
 router.get('/graphGeneration', function(req, res, next) {
     // Check whether block parameters are valid
-    if(req.query.startblock < 0 || res.query.endblock - req.query.startblock > 5 || res.query.endblock < req.query.startblock) {
+    if(req.query.startblock < 0 || req.query.endblock - req.query.startblock > 5 || req.query.endblock < req.query.startblock) {
         res.status(406).json({error: 'invalid block parameters.'});
         return;
     }
@@ -31,7 +31,7 @@ router.get('/graphGeneration', function(req, res, next) {
     let accTransactions = [];
 
     for(let i = 0; i<directoryContents.length; i++) {
-        const rawBlockData = fs.readFileSync(`../blockchain_data/log_store/${directory}/${directoryContents[i]}`);
+        const rawBlockData = fs.readFileSync(`./blockchain_data/log_store/${directory}/${directoryContents[i]}`);
         const parsedBlock = JSON.parse(rawBlockData);
 
         accTransactions = accTransactions.concat(parsedBlock.transactions);
