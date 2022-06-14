@@ -6,6 +6,12 @@ var router = express.Router();
 
 /* Endpoint to get parsed data for graph generation from blockchain */
 router.get('/graphGeneration', function(req, res, next) {
+    // Check whether block parameters are valid
+    if(req.query.startblock < 0 || res.query.endblock - req.query.startblock > 5 || res.query.endblock < req.query.startblock) {
+        res.status(406).json({error: 'invalid block parameters.'});
+        return;
+    }
+
     const d = new Date();
     // Directory name (blocks, data, time)
     const directory = `b${req.query.startblock}_${req.query.endblock}d${d.getMonth()}_${d.getDay()}_${d.getFullYear()}t${d.getHours()}_${d.getMinutes()}_${d.getSeconds()}_${d.getMilliseconds()}`;
@@ -18,15 +24,25 @@ router.get('/graphGeneration', function(req, res, next) {
 
     console.log('Executed shell script');
 
+    // Get files in directory (this is needed as specified blocks might not all be part of blockchain)
     const directoryContents = fs.readdirSync(`./blockchain_data/log_store/${directory}`);
     console.log('directoryContents: ', directoryContents);
 
+    let accTransactions = [];
 
-    //let rawBlockData = fs.readFileSync(`../blockchain_data/log_store/${directory}/`)
+    for(let i = 0; i<directoryContents.length; i++) {
+        const rawBlockData = fs.readFileSync(`../blockchain_data/log_store/${directory}/${directoryContents[i]}`);
+        const parsedBlock = JSON.parse(rawBlockData);
 
-    //let student = JSON.parse(rawdata);
+        accTransactions = accTransactions.concat(parsedBlock.transactions);
+    }
 
-    res.send('Placeholder response');
+    // TODO: delete files and directory
+
+    // edges = createConflictGraph(accTransactions);
+    // attributes = generateAttributes(edges, accTransactions);
+
+    res.send(accTransactions);
 });
 
 
