@@ -33,13 +33,38 @@ async function setClient() {
                 endblock = blockchainheight;
             }
 
-            //The complete blockchain is parsed
+            let current_tx_num = 1;
+
+            //The specified blocks of the blockchain are parsed
             for (let index = startblock; index < (endblock + 1); index++) {
                 var fileName = "./log_extraction/data/" + index + ".json";
                 var jsonstr = "";
+
                 try {
-                    //Blocks are queried from the blockchain
-                    jsonstr = JSON.stringify((await channel.queryBlock(index)), null, 4)
+                    //Block queried from the blockchain
+                    var block = await channel.queryBlock(index);
+
+                    // Transactions are parsed to avoid writing and copying irrelevant data
+                    let parsedTransactions = [];
+                    for(let j=0; j<block.data.data.length; j++) {
+                        parsedTransactions.push(
+                            {
+                                tx_number: current_tx_num,
+                                tx_id: block.data.data[j].payload.header.channel_header.tx_id,
+                                type: block.data.data[j].payload.header.channel_header.typeString,
+                                block_number: index,
+                                proposal_response_result: block.data.data[j].payload.data.actions[0].payload.action.proposal_response_payload.extension.results,
+                                status: block.metadata.metadata[2][j],
+                            }
+                        );
+                        current_tx_num += 1;
+                    }
+
+                    const jsonBlock = {
+                        transactions: parsedTransactions
+                    };
+
+                    jsonstr = JSON.stringify(jsonBlock, null, 4)
                 }
                 catch(e) {
                     console.log("CAUGHT JSON LENGTH EXCEPTION")
