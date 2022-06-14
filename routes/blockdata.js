@@ -1,4 +1,5 @@
 var express = require('express');
+const fs = require('fs');
 const { exec, execSync } = require("child_process");
 
 var router = express.Router();
@@ -6,15 +7,24 @@ var router = express.Router();
 /* Endpoint to get parsed data for graph generation from blockchain */
 router.get('/graphGeneration', function(req, res, next) {
     const d = new Date();
-    const directory = `blocks${req.query.startblock}${req.query.endblock}${d.getMonth()}${d.getDay()}${d.getFullYear()}${d.getHours()}${d.getMinutes()}${d.getSeconds()}${d.getMilliseconds()}`;
+    // Directory name (blocks, data, time)
+    const directory = `b${req.query.startblock}_${req.query.endblock}d${d.getMonth()}_${d.getDay()}_${d.getFullYear()}t${d.getHours()}_${d.getMinutes()}_${d.getSeconds()}_${d.getMilliseconds()}`;
 
-    console.log('directory', directory);
+    console.log('Created directory', directory);
 
-    console.log('Executed pwd');
-    execSync('sudo chmod +x  ./routes/logExtraction.sh');
+    execSync('sudo chmod +x  ./blockchain_data/logExtraction.sh');
     console.log('Changed permissions of extraction script');
-    execSync( `sh ./routes/logExtraction.sh ${req.query.startblock} ${req.query.endblock} ${directory}`, { stdio: 'ignore' });
-    console.log('Should have executed shell script');
+    execSync( `sh ./blockchain_data/logExtraction.sh ${req.query.startblock} ${req.query.endblock} ${directory}`, { stdio: 'ignore' });
+
+    console.log('Executed shell script');
+
+    const directoryContents = fs.readdirSync(`./blockchain_data/log_store/${directory}`);
+    console.log('directoryContents: ', directoryContents);
+
+
+    //let rawBlockData = fs.readFileSync(`../blockchain_data/log_store/${directory}/`)
+
+    //let student = JSON.parse(rawdata);
 
     res.send('Placeholder response');
 });
