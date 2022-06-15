@@ -79,6 +79,17 @@ async function setClient() {
                             tx_class = 'undefined';
                         }
 
+                        const tx_endorsements = block.data.data[j].payload.data.actions[0].payload.action.endorsements;
+                        let parsed_tx_endorsements;
+                        // Parse endorsements to reduce amount of data
+                        for(let s=0; s<tx_endorsements.length; s++) {
+                            parsed_tx_endorsements.push(
+                                {
+                                    endorser: tx_endorsements[s].endorser
+                                }
+                            );
+                        }
+
                         parsedTransactions.push(
                             {
                                 tx_number: current_tx_num,
