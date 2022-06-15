@@ -104,7 +104,7 @@ async function setClient() {
                                     typeString: tx_chaincode.typeString,
                                     chaincode_id: tx_chaincode.chaincode_id,
                                 },
-                                endorsements: block.data.data[j].payload.data.actions[0].payload.action.endorsements,
+                                endorsements: parsed_tx_endorsements,
                                 status: block.metadata.metadata[2][j],
                             }
                         );
