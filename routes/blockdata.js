@@ -80,14 +80,10 @@ function createConflictGraph(transactions) {
             // Create list of all ns_rwsets to consider (have to match tx chaincode, no system chaincodes)
             let tx_rw_sets = [];
             for(let j=0; j<tx.rw_set.length; j++) {
-                console.log(tx.rw_set[j].namespace);
-                console.log(tx.chaincode_spec.chaincode_id.name);
-                console.log('equal?', tx.rw_set[j].namespace === tx.chaincode_spec.chaincode_id.name);
                 if(tx.rw_set[j].namespace === tx.chaincode_spec.chaincode_id.name) {
                     tx_rw_sets.push(tx.rw_set[j].rwset);
                 }
             }
-            console.log(`tx_rw_sets for tx with ${tx.tx_number}`, tx_rw_sets);
             // Create combined rw_set create keyMap entry and check for edges
             const combined_rw_set = [];
             // Set used for quickly checking whether key already in combined_rw_set
@@ -178,7 +174,7 @@ function createConflictGraph(transactions) {
                         // Add an edge for all conflicting entries
                         for(let c=0; c<conflicting_entries.length; c++) {
                             conflictsLeadingToFailure++;
-                            edges.add(
+                            edges.push(
                                 {
                                     from: conflicting_entries[c].tx,
                                     to: tx.tx_number,
@@ -192,7 +188,7 @@ function createConflictGraph(transactions) {
                     if(combined_rw_set[j].write) {
                         const conflicting_entries = keyMap.get(combined_rw_set[j].key).filter(entry => entry.read === true);
                         for(let c=0; c<conflicting_entries.length; c++) {
-                            edges.add(
+                            edges.push(
                                 {
                                     from: tx.tx_number,
                                     to: conflicting_entries[c].tx,
