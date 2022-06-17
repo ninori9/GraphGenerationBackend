@@ -108,6 +108,7 @@ function createConflictGraph(transactions) {
                     );
                 }
                 // Add range reads
+                console.log(`Tx ${tx.tx_number} range queries info`, tx_rw_sets[j].range_queries_info);
                 for(let rr=0; rr<tx_rw_sets[j].range_queries_info.length; rr++) {
                     const range_read_reads = tx_rw_sets[j].range_queries_info[rr].raw_reads.kv_reads;
                     console.log('range_read_reads', range_read_reads);
