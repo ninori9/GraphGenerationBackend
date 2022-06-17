@@ -108,7 +108,6 @@ function createConflictGraph(transactions) {
                     );
                 }
                 // Add range reads
-                console.log(`Tx ${tx.tx_number} range queries info`, tx_rw_sets[j].range_queries_info);
                 for(let rr=0; rr<tx_rw_sets[j].range_queries_info.length; rr++) {
                     const range_read_reads = tx_rw_sets[j].range_queries_info[rr].raw_reads.kv_reads;
                     console.log('range_read_reads', range_read_reads);
@@ -357,6 +356,16 @@ function exampleTransactions() {
                                 }
                             }
                         ],
+                        range_queries_info: [],
+                        writes: [],
+                        metadata_writes: []
+                    },
+                    collection_hashed_rwset: []
+                },
+                {
+                    namespace: "simplesupplychain",
+                    rwset: {
+                        reads: [],
                         range_queries_info: [
                             {
                                 start_key: "3",
@@ -392,24 +401,6 @@ function exampleTransactions() {
                         writes: [
                             {
                                 key: "0",
-                                is_delete: false,
-                                value: "{\"id\":\"1107\",\"date\":\"Sat Jun 18 2022 09:37:40 GMT+0000 (Coordinated Universal Time)\",\"source\":\"A\",\"destination\":\"D\",\"status\":\"1\"}"
-                            }
-                        ],
-                        metadata_writes: []
-                    },
-                    collection_hashed_rwset: []
-                },
-                {
-                    namespace: "simplesupplychain",
-                    rwset: {
-                        reads: [],
-                        range_queries_info: [
-
-                        ],
-                        writes: [
-                            {
-                                key: "1107",
                                 is_delete: false,
                                 value: "{\"id\":\"1107\",\"date\":\"Sat Jun 18 2022 09:37:40 GMT+0000 (Coordinated Universal Time)\",\"source\":\"A\",\"destination\":\"D\",\"status\":\"1\"}"
                             }
