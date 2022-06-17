@@ -80,8 +80,11 @@ function createConflictGraph(transactions) {
             // Create list of all ns_rwsets to consider (have to match tx chaincode, no system chaincodes)
             let tx_rw_sets = [];
             for(let j=0; j<tx.rw_set.length; j++) {
+                console.log(tx.rw_set[j].namespace);
+                console.log(tx.chaincode_spec.chaincode_id.name);
+                console.log('equal?', tx.rw_set[j].namespace === tx.chaincode_spec.chaincode_id.name);
                 if(tx.rw_set[j].namespace === tx.chaincode_spec.chaincode_id.name) {
-                    tx_rw_sets.push(tx.rw_set);
+                    tx_rw_sets.push(tx.rw_set.rwset);
                 }
             }
             console.log(`tx_rw_sets for tx with ${tx.tx_number}`, tx_rw_sets);
