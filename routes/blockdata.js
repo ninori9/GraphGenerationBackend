@@ -47,8 +47,17 @@ router.get('/graphGeneration', function(req, res, next) {
     res.send(accTransactions);
 });
 
+router.get('/ggTest', function(req, res, next) {
+    console.log('GG TEST');
+    const tx = exampleTransactions();
+    console.log('Example tx received');
+    const result = createConflictGraph(tx);
+    res.send(result);
+});
+
 
 function createConflictGraph(transactions) {
+    console.log('create conflict graph called');
     /* NOTE: transactions is an array of sorted transaction objects
     This method also returns the amount of conflicts leading to conflicts, and the amount of failures of each type */
 
@@ -69,7 +78,7 @@ function createConflictGraph(transactions) {
             failureAmounts.set(tx.status, failureAmounts.get(tx.status) + 1 || 1);
         }
 
-        // Exclude CONFIG transactions as they never have an edge
+        // Exclude CONFIG transactions as they never have an edge due to key overlap
         if(tx.typeString !== 'CONFIG') {
             // Create list of all ns_rwsets to consider (have to match tx chaincode, no system chaincodes)
             let tx_rw_sets = [];
@@ -92,7 +101,10 @@ function createConflictGraph(transactions) {
                         {
                             key: read.key,
                             read: true,
-                            read_version: read.version,
+                            read_version: {
+                                block_num: parseInt(read.version.block_num),
+                                tx_num: parseInt(read.version.tx_num)
+                            },
                             write: false,
                             write_version: null,
                         }
@@ -109,7 +121,10 @@ function createConflictGraph(transactions) {
                                 {
                                     key: range_read_reads[k].key,
                                     read: true,
-                                    read_version: range_read_reads[k].version,
+                                    read_version: {
+                                        block_num: parseInt(range_read_reads[k].version.block_num),
+                                        tx_num: parseInt(range_read_reads[k].version.tx_num)
+                                    },
                                     write: false,
                                     write_version: null,                                        
                                 }
@@ -701,7 +716,7 @@ function exampleTransactions() {
                     }
                 }
             ],
-            status: 0
+            status: 11
         },
         {
             tx_number: 5,
