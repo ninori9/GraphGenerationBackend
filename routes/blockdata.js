@@ -74,7 +74,6 @@ function createConflictGraph(transactions) {
             totalFailures++;
             failureAmounts.set(tx.status, failureAmounts.get(tx.status) + 1 || 1);
         }
-        console.log('failureAmounts for status 11', failureAmounts.get(11));
 
         // Exclude CONFIG transactions as they never have an edge due to key overlap
         if(tx.typeString !== 'CONFIG') {
@@ -158,7 +157,6 @@ function createConflictGraph(transactions) {
                         );
                     }
                 }
-                console.log(`combined_rw_set for tx with ${tx.tx_number}`, combined_rw_set);
             }
 
             // Sets to quickly look up whether a dependency between two transactions is caused by multiple keys
@@ -250,8 +248,10 @@ function createConflictGraph(transactions) {
     // Parse failure type amounts
     const parsedFailureAmounts = [];
     for(failureStatusAmount in failureAmounts) {
+        console.log('entry of failureAmounts', failureStatusAmount);
         parsedFailureAmounts.push(failureStatusAmount);
     }
+    console.log('parsedFailureAmounts', parsedFailureAmounts);
 
     return {
         edges: edges,
