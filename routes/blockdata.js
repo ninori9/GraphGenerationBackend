@@ -230,7 +230,7 @@ function createConflictGraph(transactions) {
     // Parse failure type amounts
     const parsedFailureAmounts = [];
     for(failureStatusAmount in failureAmounts) {
-        parsedFailureAmounts.push(failureAmounts);
+        parsedFailureAmounts.push(failureStatusAmount);
     }
 
     return {
@@ -617,7 +617,7 @@ function exampleTransactions() {
                     }
                 }
             ],
-            status: 0
+            status: 11
         },
         {
             tx_number: 4,
