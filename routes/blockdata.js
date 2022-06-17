@@ -84,7 +84,7 @@ function createConflictGraph(transactions) {
                 console.log(tx.chaincode_spec.chaincode_id.name);
                 console.log('equal?', tx.rw_set[j].namespace === tx.chaincode_spec.chaincode_id.name);
                 if(tx.rw_set[j].namespace === tx.chaincode_spec.chaincode_id.name) {
-                    tx_rw_sets.push(tx.rw_set.rwset);
+                    tx_rw_sets.push(tx.rw_set[j].rwset);
                 }
             }
             console.log(`tx_rw_sets for tx with ${tx.tx_number}`, tx_rw_sets);
