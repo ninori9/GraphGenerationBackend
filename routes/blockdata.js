@@ -48,16 +48,13 @@ router.get('/graphGeneration', function(req, res, next) {
 });
 
 router.get('/ggTest', function(req, res, next) {
-    console.log('GG TEST');
     const tx = exampleTransactions();
-    console.log('Example tx received');
     const result = createConflictGraph(tx);
     res.send(result);
 });
 
 
 function createConflictGraph(transactions) {
-    console.log('create conflict graph called');
     /* NOTE: transactions is an array of sorted transaction objects
     This method also returns the amount of conflicts leading to conflicts, and the amount of failures of each type */
 
@@ -87,6 +84,7 @@ function createConflictGraph(transactions) {
                     tx_rw_sets.push(tx.rw_set);
                 }
             }
+            console.log(`tx_rw_sets for tx with ${tx.tx_number}`, tx_rw_sets);
             // Create combined rw_set create keyMap entry and check for edges
             const combined_rw_set = [];
             // Set used for quickly checking whether key already in combined_rw_set
@@ -160,6 +158,7 @@ function createConflictGraph(transactions) {
                         );
                     }
                 }
+                console.log(`combined_rw_set for tx with ${tx.tx_number}`, combined_rw_set);
             }
             // For all keys of combined rw_set of transaction, create keyMap entry and possibly check for edges
             for(let j=0; j<combined_rw_set.length; j++) {
