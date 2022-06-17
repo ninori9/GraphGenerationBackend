@@ -74,6 +74,7 @@ function createConflictGraph(transactions) {
             totalFailures++;
             failureAmounts.set(tx.status, failureAmounts.get(tx.status) + 1 || 1);
         }
+        console.log('failureAmounts for status 11', failureAmounts.get(11));
 
         // Exclude CONFIG transactions as they never have an edge due to key overlap
         if(tx.typeString !== 'CONFIG') {
@@ -110,7 +111,6 @@ function createConflictGraph(transactions) {
                 // Add range reads
                 for(let rr=0; rr<tx_rw_sets[j].range_queries_info.length; rr++) {
                     const range_read_reads = tx_rw_sets[j].range_queries_info[rr].raw_reads.kv_reads;
-                    console.log('range_read_reads', range_read_reads);
                     for(let k=0; k<range_read_reads.length; k++) {
                         // NOTE: It is assumed that if key is read in range read and normal read (which will likely not happen), that same version is read
                         if(! rw_set_keys.has(range_read_reads[k].key)) {
@@ -160,6 +160,9 @@ function createConflictGraph(transactions) {
                 }
                 console.log(`combined_rw_set for tx with ${tx.tx_number}`, combined_rw_set);
             }
+
+            // Sets to quickly look up whether a dependency between two transactions is caused by multiple keys
+            const addedEdgesFrom = new Set(); const addedEdgesTo = new Set();
             // For all keys of combined rw_set of transaction, create keyMap entry and possibly check for edges
             for(let j=0; j<combined_rw_set.length; j++) {
 
@@ -174,29 +177,45 @@ function createConflictGraph(transactions) {
                         );
                         // Add an edge for all conflicting entries
                         for(let c=0; c<conflicting_entries.length; c++) {
+                            // If an edge form the conflicting transaction to tx already exists due to another key, add this key to key_overlap of edge
+                            if(addedEdgesFrom.has(conflicting_entries[c].tx)) {
+                                edges[edges.indexOf(edge => edge.from === conflicting_entries[c].tx)].key_overlap.push(combined_rw_set[j].key);
+                            }
+                            // Else create new edge
+                            else {
+                                edges.push(
+                                    {
+                                        from: conflicting_entries[c].tx,
+                                        to: tx.tx_number,
+                                        key_overlap: [combined_rw_set[j].key],
+                                        reason_for_failure: true,
+                                    }
+                                );
+                                addedEdgesFrom.add(conflicting_entries[c].tx);
+                            }
                             conflictsLeadingToFailure++;
-                            edges.push(
-                                {
-                                    from: conflicting_entries[c].tx,
-                                    to: tx.tx_number,
-                                    key_overlap: combined_rw_set[j].key,
-                                    reason_for_failure: true,
-                                }
-                            );
                         }
                     }
                     // If write, search for preceding reads accessing the same key
                     if(combined_rw_set[j].write) {
                         const conflicting_entries = keyMap.get(combined_rw_set[j].key).filter(entry => entry.read === true);
                         for(let c=0; c<conflicting_entries.length; c++) {
-                            edges.push(
-                                {
-                                    from: tx.tx_number,
-                                    to: conflicting_entries[c].tx,
-                                    key_overlap: combined_rw_set[j].key,
-                                    reason_for_failure: false,
-                                }
-                            );
+                            // If an edge form the conflicting transaction to tx already exists due to another key, add this key to key_overlap of edge
+                            if(addedEdgesTo.has(conflicting_entries[c].tx)) {
+                                edges[edges.indexOf(edge => edge.from === conflicting_entries[c].tx)].key_overlap.push(combined_rw_set[j].key);
+                            }
+                            // Else create new edge
+                            else {
+                                edges.push(
+                                    {
+                                        from: tx.tx_number,
+                                        to: conflicting_entries[c].tx,
+                                        key_overlap: [combined_rw_set[j].key],
+                                        reason_for_failure: false,
+                                    }
+                                );
+                                addedEdgesTo.add(conflicting_entries[c].tx);
+                            }
                         }
                     }
                     // Add transaction to keyMap
@@ -227,6 +246,7 @@ function createConflictGraph(transactions) {
         }
     }
 
+    console.log('failureAmounts', failureAmounts);
     // Parse failure type amounts
     const parsedFailureAmounts = [];
     for(failureStatusAmount in failureAmounts) {
@@ -745,6 +765,11 @@ function exampleTransactions() {
                         reads: [],
                         range_queries_info: [],
                         writes: [
+                            {
+                                key: "6",
+                                is_delete: false,
+                                value: "{\"id\":\"1107\",\"date\":\"Sat Jun 18 2022 09:37:40 GMT+0000 (Coordinated Universal Time)\",\"source\":\"A\",\"destination\":\"D\",\"status\":\"1\"}"
+                            },
                             {
                                 key: "7",
                                 is_delete: false,
