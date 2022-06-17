@@ -33,7 +33,7 @@ async function setClient() {
                 endblock = blockchainheight;
             }
 
-            let current_tx_num = 1;
+            let current_tx_num = 0;
 
             //The specified blocks of the blockchain are parsed
             for (let index = startblock; index < (endblock + 1); index++) {
