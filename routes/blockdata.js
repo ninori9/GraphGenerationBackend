@@ -202,7 +202,7 @@ function createConflictGraph(transactions) {
                         for(let c=0; c<conflicting_entries.length; c++) {
                             // If an edge form the conflicting transaction to tx already exists due to another key, add this key to key_overlap of edge
                             if(addedEdgesTo.has(conflicting_entries[c].tx)) {
-                                edges[edges.indexOf(edge => edge.from === conflicting_entries[c].tx)].key_overlap.push(combined_rw_set[j].key);
+                                edges[edges.indexOf(edge => edge.to === conflicting_entries[c].tx)].key_overlap.push(combined_rw_set[j].key);
                             }
                             // Else create new edge
                             else {
