@@ -62,11 +62,11 @@ function createConflictGraph(transactions) {
     This method also returns the amount of conflicts leading to conflicts, and the amount of failures of each type */
 
     const edges = [];
-    const failureAmounts = Map();
+    const failureAmounts = new Map();
     let totalFailures = 0;
     let conflictsLeadingToFailure = 0;
 
-    const keyMap = Map();
+    const keyMap = new Map();
 
     // For all transactions
     for(let i=0; i<transactions.length; i++) {
@@ -90,7 +90,7 @@ function createConflictGraph(transactions) {
             // Create combined rw_set create keyMap entry and check for edges
             const combined_rw_set = [];
             // Set used for quickly checking whether key already in combined_rw_set
-            const rw_set_keys = Set();
+            const rw_set_keys = new Set();
 
             for(let j=0; j<tx_rw_sets.length; j++) {
                 // Add reads
