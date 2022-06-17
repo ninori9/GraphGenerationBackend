@@ -247,11 +247,9 @@ function createConflictGraph(transactions) {
     console.log('failureAmounts', failureAmounts);
     // Parse failure type amounts
     const parsedFailureAmounts = [];
-    for(failureStatusAmount in failureAmounts) {
-        console.log('entry of failureAmounts', failureStatusAmount);
+    for(failureStatusAmount of failureAmounts) {
         parsedFailureAmounts.push(failureStatusAmount);
     }
-    console.log('parsedFailureAmounts', parsedFailureAmounts);
 
     return {
         edges: edges,
