@@ -229,10 +229,6 @@ function createConflictGraph(transactions) {
     }
 }
 
-routes.get('/testGraphGeneration', function(req, res, next) {
-    //
-})
-
 
 /* Endpoint sends example data, can be used for testing purposes */
 router.get('/exampleData', function(req, res, next) {
