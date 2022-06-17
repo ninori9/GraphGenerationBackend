@@ -110,6 +110,7 @@ function createConflictGraph(transactions) {
                 // Add range reads
                 for(let rr=0; rr<tx_rw_sets[j].range_queries_info.length; rr++) {
                     const range_read_reads = tx_rw_sets[j].range_queries_info[rr].raw_reads.kv_reads;
+                    console.log('range_read_reads', range_read_reads);
                     for(let k=0; k<range_read_reads.length; k++) {
                         // NOTE: It is assumed that if key is read in range read and normal read (which will likely not happen), that same version is read
                         if(! rw_set_keys.has(range_read_reads[k].key)) {
