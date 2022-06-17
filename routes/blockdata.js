@@ -200,12 +200,9 @@ function createConflictGraph(transactions) {
                     if(combined_rw_set[j].write) {
                         const conflicting_entries = keyMap.get(combined_rw_set[j].key).filter(entry => entry.read === true);
                         for(let c=0; c<conflicting_entries.length; c++) {
-                            // If an edge form the conflicting transaction to tx already exists due to another key, add this key to key_overlap of edge
+                            // If an edge to the conflicting transaction from tx already exists due to another key, add this key to key_overlap of edge
                             if(addedEdgesTo.has(conflicting_entries[c].tx)) {
-                                console.log('This should only happen for Tx 5 and key 7', tx.tx_number, combined_rw_set[j].key);
-                                console.log(`Searching for index with to: ${conflicting_entries[c].tx}`, edges.findIndex(edge => edge.from === tx.tx_number && edge.to === conflicting_entries[c].tx));
-                                console.log('edges so far', edges);
-                                edges[edges.findIndex(edge => edge.to === conflicting_entries[c].tx)].key_overlap.push(combined_rw_set[j].key);
+                                edges[edges.findIndex(edge => edge.from === tx.tx_number && edge.to === conflicting_entries[c].tx)].key_overlap.push(combined_rw_set[j].key);
                             }
                             // Else create new edge
                             else {
