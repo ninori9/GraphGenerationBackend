@@ -48,6 +48,7 @@ async function setClient() {
                     let parsedTransactions = [];
                     // TODO: Need to parse differently if different transaction type due to different structure
                     for(let j=0; j<block.data.data.length; j++) {
+
                         const tx_type_string = block.data.data[j].payload.header.channel_header.typeString; // e.g. configuration update or endorser transaction
 
                         if(tx_type_string === 'CONFIG') {
@@ -58,6 +59,7 @@ async function setClient() {
                                     creator: block.data.data[j].payload.header.signature_header.creator,
                                     typeString: tx_type_string,
                                     block_number: index,
+                                    tx_block_number: j,
                                     status: block.metadata.metadata[2][j],
                                 }
                             );
@@ -114,6 +116,7 @@ async function setClient() {
                                     class: tx_class, 
                                     typeString: tx_type_string,
                                     block_number: index,
+                                    tx_block_number: j,
                                     rw_set: tx_rw_set,
                                     chaincode_spec: {
                                         type: tx_chaincode.type,
