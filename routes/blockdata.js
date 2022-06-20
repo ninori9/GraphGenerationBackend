@@ -295,11 +295,10 @@ function createConflictGraph(transactions) {
 
 function serializabilityCheck(adjacencyList) {
     let cycles = findCircuits(adjacencyList);
-    let serializable = true;
-    
-    if(cycles !== undefined && cycles.length > 0) {
-        serializable = false;
-    }
+
+    console.log('initial cycles', cycles);
+
+    const serializable = ! (cycles !== undefined && cycles.length > 0);
     
     let abortedTx = [];
 
@@ -335,7 +334,7 @@ function serializabilityCheck(adjacencyList) {
         });
 
         abortedTx.push(txToBeAborted);
-        console.log('txToBeAborted', txToBeAborted);
+        console.log('txToBeAborted involved in X cycles', txToBeAborted, maximum);
 
         cycles = cycles.filter(cycle => { ! cycle.includes(txToBeAborted) });
         console.log('cycles', cycles);
