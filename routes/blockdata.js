@@ -1,6 +1,7 @@
 var express = require('express');
 const fs = require('fs');
 const { exec, execSync } = require("child_process");
+var findCircuits = require("elementary-circuits-directed-graph"); 
 
 var router = express.Router();
 
@@ -50,15 +51,20 @@ router.get('/graphGeneration', function(req, res, next) {
 router.get('/ggTest', function(req, res, next) {
     const tx = exampleTransactions();
     const result = createConflictGraph(tx);
+    serializabilityCheck(result.attributes.adjacencyList);
     res.send(result);
 });
 
 
 function createConflictGraph(transactions) {
-    /* NOTE: transactions is an array of sorted transaction objects
+    /* NOTE: transactions is an array of sorted transaction objects (first has tx_number 0, increased by 1 for each tx)
     This method also returns the amount of conflicts leading to conflicts, and the amount of failures of each type */
 
     const edges = [];
+
+    // Adjacency list returned for subsequent serializability check
+    const adjacencyList = [];
+
     const failureAmounts = new Map();
     let totalFailures = 0;
     let conflictsLeadingToFailure = 0;
@@ -68,6 +74,8 @@ function createConflictGraph(transactions) {
     // For all transactions
     for(let i=0; i<transactions.length; i++) {
         const tx = transactions[i];
+
+        adjacencyList.push([]);
 
         // If transaction fails, add failure amounts
         if(tx.status !== 0) {
@@ -190,6 +198,7 @@ function createConflictGraph(transactions) {
                                     }
                                 );
                                 addedEdgesFrom.add(conflicting_entries[c].tx);
+                                adjacencyList[conflicting_entries[c].tx].push(tx.tx_number);
                             }
                             conflictsLeadingToFailure++;
                         }
@@ -213,6 +222,7 @@ function createConflictGraph(transactions) {
                                     }
                                 );
                                 addedEdgesTo.add(conflicting_entries[c].tx);
+                                adjacencyList[tx.tx_number].push(conflicting_entries[c].tx);
                             }
                         }
                     }
@@ -245,6 +255,9 @@ function createConflictGraph(transactions) {
     }
 
     console.log('failureAmounts', failureAmounts);
+
+    console.log('adjacencyList', adjacencyList);
+
     // Parse failure type amounts
     const parsedFailureAmounts = [];
     for(failureStatusAmount in failureAmounts) {
@@ -258,10 +271,18 @@ function createConflictGraph(transactions) {
         attributes: {
             totalFailures: totalFailures,
             conflictsLeadingToFailure: conflictsLeadingToFailure,
-            failureAmounts: parsedFailureAmounts
+            failureAmounts: parsedFailureAmounts,
+            adjacencyList: adjacencyList,
         }
     }
 }
+
+
+function serializabilityCheck(adjacencyList) {
+    const cycles = findCircuits(adjacencyList);
+    console.log('Cycles', cycles);
+}
+
 
 function exampleTransactions() { 
     const transactions = [

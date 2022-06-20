@@ -6,9 +6,11 @@
     "start": "node ./bin/www"
   },
   "dependencies": {
+    "child-process": "^1.0.2",
     "cookie-parser": "~1.4.4",
     "cors": "^2.8.5",
     "debug": "~2.6.9",
+    "elementary-circuits-directed-graph": "^1.3.1",
     "express": "~4.16.1",
     "fabric-client": "^1.4.20",
     "http-errors": "~1.6.3",
