@@ -59,7 +59,7 @@ router.get('/ggTest', function(req, res, next) {
             endblock: req.query.endblock,
             serializable: serializabilityAttributes.serializable,
             needToAbort: serializabilityAttributes.abortedTx,
-            conflicts: graphAndAttributes.totalConflicts,
+            conflicts: graphAndAttributes.attributes.totalConflicts,
             conflictsLeadingToFailure: graphAndAttributes.attributes.conflictsLeadingToFailure,
             transactions: tx.length,
             totalFailures: graphAndAttributes.attributes.totalFailures,
@@ -279,6 +279,8 @@ function createConflictGraph(transactions) {
 
     console.log('adjacencyList', adjacencyList);
 
+    console.log('totalConflicts', totalConflicts);
+
     // Parse failure type amounts
     const parsedFailureAmounts = [];
     for(failureStatusAmount of failureAmounts) {
@@ -448,7 +450,7 @@ function exampleTransactions() {
                 Mspid: "Org1MSP",
                 IdBytes: "-----BEGIN CERTIFICATE-----\nMIICBTCCAaugAwIBAgIRALIjogqwdNLqTj93y5OujnowCgYIKoZIzj0EAwIwWzEL\nMAkGA1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWExFjAUBgNVBAcTDVNhbiBG\ncmFuY2lzY28xDTALBgNVBAoTBG9yZzExEDAOBgNVBAMTB2NhLm9yZzEwHhcNMjIw\nNjE0MDkyNTAwWhcNMzIwNjExMDkyNTAwWjBeMQswCQYDVQQGEwJVUzETMBEGA1UE\nCBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNU2FuIEZyYW5jaXNjbzENMAsGA1UECxME\ncGVlcjETMBEGA1UEAxMKcGVlcjAub3JnMTBZMBMGByqGSM49AgEGCCqGSM49AwEH\nA0IABIKwAk1B/C+j7Qut/IGg3FDvgCFVYCjxkuDyjUWON0JxtLUI9aU5zxb6PTce\nqmbHadKs47W4g4SAlk+eLvPxWZWjTTBLMA4GA1UdDwEB/wQEAwIHgDAMBgNVHRMB\nAf8EAjAAMCsGA1UdIwQkMCKAIBOvXfL41Zmdp1yoZ/YWZfWd8QR5EwaPf8d5kDNl\nCL/PMAoGCCqGSM49BAMCA0gAMEUCIQCIoLNmcZLi1eqoIszPp8LjTWi0nycRm+Ay\nOht76uxQbAIgSkpx6NE6oIOiMi3fSJ7d5NfhMdLIfn789SmdesUJdzQ=\n-----END CERTIFICATE-----\n"
             },
-            class: "Update",
+            class: "Range Query",
             typeString: "ENDORSER_TRANSACTION",
             block_number: 15,
             tx_block_number: 1,
@@ -726,7 +728,7 @@ function exampleTransactions() {
                     }
                 }
             ],
-            status: 11
+            status: 12
         },
         {
             tx_number: 4,
@@ -825,7 +827,7 @@ function exampleTransactions() {
                 Mspid: "Org1MSP",
                 IdBytes: "-----BEGIN CERTIFICATE-----\nMIICBTCCAaugAwIBAgIRALIjogqwdNLqTj93y5OujnowCgYIKoZIzj0EAwIwWzEL\nMAkGA1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWExFjAUBgNVBAcTDVNhbiBG\ncmFuY2lzY28xDTALBgNVBAoTBG9yZzExEDAOBgNVBAMTB2NhLm9yZzEwHhcNMjIw\nNjE0MDkyNTAwWhcNMzIwNjExMDkyNTAwWjBeMQswCQYDVQQGEwJVUzETMBEGA1UE\nCBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNU2FuIEZyYW5jaXNjbzENMAsGA1UECxME\ncGVlcjETMBEGA1UEAxMKcGVlcjAub3JnMTBZMBMGByqGSM49AgEGCCqGSM49AwEH\nA0IABIKwAk1B/C+j7Qut/IGg3FDvgCFVYCjxkuDyjUWON0JxtLUI9aU5zxb6PTce\nqmbHadKs47W4g4SAlk+eLvPxWZWjTTBLMA4GA1UdDwEB/wQEAwIHgDAMBgNVHRMB\nAf8EAjAAMCsGA1UdIwQkMCKAIBOvXfL41Zmdp1yoZ/YWZfWd8QR5EwaPf8d5kDNl\nCL/PMAoGCCqGSM49BAMCA0gAMEUCIQCIoLNmcZLi1eqoIszPp8LjTWi0nycRm+Ay\nOht76uxQbAIgSkpx6NE6oIOiMi3fSJ7d5NfhMdLIfn789SmdesUJdzQ=\n-----END CERTIFICATE-----\n"
             },
-            class: "Update",
+            class: "Write-only",
             typeString: "ENDORSER_TRANSACTION",
             block_number: 15,
             tx_block_number: 5,
