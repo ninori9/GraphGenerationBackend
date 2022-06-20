@@ -50,8 +50,25 @@ router.get('/graphGeneration', function(req, res, next) {
 
 router.get('/ggTest', function(req, res, next) {
     const tx = exampleTransactions();
-    const result = createConflictGraph(tx);
-    serializabilityCheck(result.attributes.adjacencyList);
+    const graphAndAttributes = createConflictGraph(tx);
+    const serializabilityAttributes = serializabilityCheck(result.attributes.adjacencyList);
+
+    const result = {
+        attributes: {
+            startblock: req.query.startblock,
+            endblock: req.query.endblock,
+            serializable: serializabilityAttributes.serializable,
+            needToAbort: serializabilityAttributes.abortedTx,
+            conflicts: graphAndAttributes.edges.length,
+            conflictsLeadingToFailure: graphAndAttributes.attributes.conflictsLeadingToFailure,
+            transactions: tx.length,
+            totalFailures: graphAndAttributes.attributes.totalFailures,
+            failureTypes: graphAndAttributes.attributes.failureAmounts
+        },
+        transactions: tx,
+        edges: graphAndAttributes.edges
+    };
+
     res.send(result);
 });
 
@@ -277,8 +294,57 @@ function createConflictGraph(transactions) {
 
 
 function serializabilityCheck(adjacencyList) {
-    const cycles = findCircuits(adjacencyList);
-    console.log('Cycles', cycles);
+    let cycles = findCircuits(adjacencyList);
+    let serializable = true;
+    
+    if(cycles !== undefined && cycles.length > 0) {
+        serializable = false;
+    }
+    
+    let abortedTx = [];
+
+    while(cycles.length > 0) {
+
+        // Find all transactions involved in cycles
+        const txInvolvedInCycles = new Set();
+        
+        for(let i=0; i<cycles.length; i++) {
+            for(let j=0; j<cycles[i].length; j++) {
+                txInvolvedInCycles.add(cycles[i][j]);
+            }
+        }
+
+        // Find transaction involved in the most cycles (should be aborted)
+        let maximum = 0; let txToBeAborted = -1;
+
+        txInvolvedInCycles.forEach(tx => {
+            let cyclesOfTx = 0;
+
+            // Count cycles tx is involved in
+            for(let i=0; i<cycles.length; i++) {
+                if(cycles[i].includes(tx)) {
+                    cyclesOfTx++;
+                }
+            }
+
+            // In the case of a tie, the transaction with the highest tx_number should be aborted (ensure deterministic algorithm)
+            if(cyclesOfTx > maximum || cyclesOfTx === maximum && tx > txToBeAborted) {
+                maximum = cyclesOfTx;
+                txToBeAborted = tx;
+            }
+        });
+
+        abortedTx.push(txToBeAborted);
+        console.log('txToBeAborted', txToBeAborted);
+
+        cycles = cycles.filter(cycle => { ! cycle.includes(txToBeAborted) });
+        console.log('cycles', cycles);
+    }
+
+    return {
+        serializable: serializable,
+        abortedTx: abortedTx,
+    }
 }
 
 
