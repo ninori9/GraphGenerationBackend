@@ -51,7 +51,7 @@ router.get('/graphGeneration', function(req, res, next) {
 router.get('/ggTest', function(req, res, next) {
     const tx = exampleTransactions();
     const graphAndAttributes = createConflictGraph(tx);
-    const serializabilityAttributes = serializabilityCheck(result.attributes.adjacencyList);
+    const serializabilityAttributes = serializabilityCheck(graphAndAttributes.attributes.adjacencyList);
 
     const result = {
         attributes: {
