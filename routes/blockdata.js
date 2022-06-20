@@ -324,6 +324,7 @@ function serializabilityCheck(adjacencyList) {
                 if(cycles[i].includes(tx)) {
                     cyclesOfTx++;
                 }
+                indeces
             }
 
             // In the case of a tie, the transaction with the highest tx_number should be aborted (ensure deterministic algorithm)
@@ -336,7 +337,7 @@ function serializabilityCheck(adjacencyList) {
         abortedTx.push(txToBeAborted);
         console.log('txToBeAborted involved in X cycles', txToBeAborted, maximum);
 
-        cycles = cycles.filter(cycle => { ! cycle.includes(txToBeAborted) });
+        cycles = cycles.filter(cycle => (! cycle.includes(txToBeAborted)) );
         console.log('cycles', cycles);
     }
 
