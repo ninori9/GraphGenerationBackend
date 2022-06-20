@@ -59,7 +59,7 @@ router.get('/ggTest', function(req, res, next) {
             endblock: req.query.endblock,
             serializable: serializabilityAttributes.serializable,
             needToAbort: serializabilityAttributes.abortedTx,
-            conflicts: graphAndAttributes.edges.length,
+            conflicts: graphAndAttributes.totalConflicts,
             conflictsLeadingToFailure: graphAndAttributes.attributes.conflictsLeadingToFailure,
             transactions: tx.length,
             totalFailures: graphAndAttributes.attributes.totalFailures,
@@ -84,6 +84,8 @@ function createConflictGraph(transactions) {
 
     const failureAmounts = new Map();
     let totalFailures = 0;
+
+    let totalConflicts = 0;
     let conflictsLeadingToFailure = 0;
 
     const keyMap = new Map();
@@ -217,6 +219,7 @@ function createConflictGraph(transactions) {
                                 addedEdgesFrom.add(conflicting_entries[c].tx);
                                 adjacencyList[conflicting_entries[c].tx].push(tx.tx_number);
                             }
+                            totalConflicts++;
                             conflictsLeadingToFailure++;
                         }
                     }
@@ -241,6 +244,7 @@ function createConflictGraph(transactions) {
                                 addedEdgesTo.add(conflicting_entries[c].tx);
                                 adjacencyList[tx.tx_number].push(conflicting_entries[c].tx);
                             }
+                            totalConflicts++;
                         }
                     }
                     // Add transaction to keyMap
@@ -285,6 +289,7 @@ function createConflictGraph(transactions) {
         edges: edges,
         attributes: {
             totalFailures: totalFailures,
+            totalConflicts: totalConflicts,
             conflictsLeadingToFailure: conflictsLeadingToFailure,
             failureAmounts: parsedFailureAmounts,
             adjacencyList: adjacencyList,
