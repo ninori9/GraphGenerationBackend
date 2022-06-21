@@ -145,8 +145,8 @@ function createConflictGraph(transactions) {
                             key: read.key,
                             read: true,
                             read_version: {
-                                block_num: parseInt(read.version.block_num),
-                                tx_num: parseInt(read.version.tx_num)
+                                block_num: read.version === null ? 0 : parseInt(read.version.block_num),
+                                tx_num: read.version === null ? 0 : parseInt(read.version.tx_num)
                             },
                             write: false,
                             write_version: null,
@@ -165,8 +165,8 @@ function createConflictGraph(transactions) {
                                     key: range_read_reads[k].key,
                                     read: true,
                                     read_version: {
-                                        block_num: parseInt(range_read_reads[k].version.block_num),
-                                        tx_num: parseInt(range_read_reads[k].version.tx_num)
+                                        block_num: range_read_reads[k].version === null ? 0 : parseInt(range_read_reads[k].version.block_num),
+                                        tx_num: range_read_reads[k].version === null ? 0 : parseInt(range_read_reads[k].version.tx_num)
                                     },
                                     write: false,
                                     write_version: null,                                        
