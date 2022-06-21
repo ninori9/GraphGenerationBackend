@@ -85,7 +85,8 @@ router.get('/ggTest', function(req, res, next) {
         edges: graphAndAttributes.edges
     };
 
-    setTimeout(() => {res.send(result);}, 10000);
+    // Add timeout to simulate fetching blockchain data
+    setTimeout(() => {res.send(result);}, 2000);
 });
 
 
