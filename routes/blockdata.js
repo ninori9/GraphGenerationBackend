@@ -42,10 +42,26 @@ router.get('/graphGeneration', function(req, res, next) {
     exec(`rm -r ./blockchain_data/log_store/${directory}`);
 
     console.log('First transaction', accTransactions[0]);
-    // edges = createConflictGraph(accTransactions);
-    // attributes = generateAttributes(edges, accTransactions);
 
-    res.send(accTransactions);
+    const graphAndAttributes = createConflictGraph(accTransactions);
+    const serializabilityAttributes = serializabilityCheck(graphAndAttributes.attributes.adjacencyList);
+
+    const result = {
+        attributes: {
+            startblock: req.query.startblock,
+            endblock: req.query.endblock,
+            serializable: serializabilityAttributes.serializable,
+            needToAbort: serializabilityAttributes.abortedTx,
+            conflicts: graphAndAttributes.attributes.totalConflicts,
+            conflictsLeadingToFailure: graphAndAttributes.attributes.conflictsLeadingToFailure,
+            transactions: accTransactions.length,
+            totalFailures: graphAndAttributes.attributes.totalFailures,
+            failureTypes: graphAndAttributes.attributes.failureAmounts
+        },
+        transactions: accTransactions,
+        edges: graphAndAttributes.edges
+    };
+    res.send(result);
 });
 
 router.get('/ggTest', function(req, res, next) {
@@ -69,15 +85,17 @@ router.get('/ggTest', function(req, res, next) {
         edges: graphAndAttributes.edges
     };
 
-    res.send(result);
+    setTimeout(() => {res.send(result);}, 10000);
 });
 
 
 function createConflictGraph(transactions) {
+    console.log('Creating conflict graph...');
     /* NOTE: transactions is an array of sorted transaction objects (first has tx_number 0, increased by 1 for each tx)
     This method also returns the amount of conflicts leading to conflicts, and the amount of failures of each type */
 
     const edges = [];
+    let current_edge_number = 0;
 
     // Adjacency list returned for subsequent serializability check
     const adjacencyList = [];
@@ -210,6 +228,7 @@ function createConflictGraph(transactions) {
                             else {
                                 edges.push(
                                     {
+                                        edge_number: current_edge_number,
                                         from: conflicting_entries[c].tx,
                                         to: tx.tx_number,
                                         key_overlap: [combined_rw_set[j].key],
@@ -218,6 +237,7 @@ function createConflictGraph(transactions) {
                                 );
                                 addedEdgesFrom.add(conflicting_entries[c].tx);
                                 adjacencyList[conflicting_entries[c].tx].push(tx.tx_number);
+                                current_edge_number++;
                             }
                             totalConflicts++;
                             conflictsLeadingToFailure++;
@@ -235,6 +255,7 @@ function createConflictGraph(transactions) {
                             else {
                                 edges.push(
                                     {
+                                        edge_number: current_edge_number,
                                         from: tx.tx_number,
                                         to: conflicting_entries[c].tx,
                                         key_overlap: [combined_rw_set[j].key],
@@ -243,6 +264,7 @@ function createConflictGraph(transactions) {
                                 );
                                 addedEdgesTo.add(conflicting_entries[c].tx);
                                 adjacencyList[tx.tx_number].push(conflicting_entries[c].tx);
+                                current_edge_number++;
                             }
                             totalConflicts++;
                         }
@@ -276,9 +298,7 @@ function createConflictGraph(transactions) {
     }
 
     console.log('failureAmounts', failureAmounts);
-
     console.log('adjacencyList', adjacencyList);
-
     console.log('totalConflicts', totalConflicts);
 
     // Parse failure type amounts
@@ -286,6 +306,9 @@ function createConflictGraph(transactions) {
     for(failureStatusAmount of failureAmounts) {
         parsedFailureAmounts.push(failureStatusAmount);
     }
+
+    console.log('Created conflict graph!');
+    console.log('Edges', edges)
 
     return {
         edges: edges,
@@ -301,6 +324,7 @@ function createConflictGraph(transactions) {
 
 
 function serializabilityCheck(adjacencyList) {
+    console.log('Checking for serializability...');
     let cycles = findCircuits(adjacencyList);
 
     console.log('initial cycles', cycles);
@@ -346,6 +370,9 @@ function serializabilityCheck(adjacencyList) {
         cycles = cycles.filter(cycle => (! cycle.includes(txToBeAborted)) );
         console.log('cycles', cycles);
     }
+
+    console.log('Done checking for serializability.');
+    console.log('Result', serializable, abortedTx);
 
     return {
         serializable: serializable,
@@ -647,7 +674,7 @@ function exampleTransactions() {
             },
             class: "Update",
             typeString: "ENDORSER_TRANSACTION",
-            block_number: 15,
+            block_number: 16,
             tx_block_number: 3,
             rw_set: [
                 {
@@ -739,7 +766,7 @@ function exampleTransactions() {
             },
             class: "Update",
             typeString: "ENDORSER_TRANSACTION",
-            block_number: 15,
+            block_number: 16,
             tx_block_number: 4,
             rw_set: [
                 {
@@ -829,8 +856,8 @@ function exampleTransactions() {
             },
             class: "Write-only",
             typeString: "ENDORSER_TRANSACTION",
-            block_number: 15,
-            tx_block_number: 5,
+            block_number: 17,
+            tx_block_number: 1,
             rw_set: [
                 {
                     namespace: "_lifecycle",
@@ -900,131 +927,5 @@ function exampleTransactions() {
     ];
     return transactions;
 }
-
-
-/* Endpoint sends example data, can be used for testing purposes */
-router.get('/exampleData', function(req, res, next) {
-  // Simulate delay by adding timeout
-  setTimeout(() => {
-    res.send(
-        {
-        attributes: {
-            startblock: req.query.startblock,
-            endblock: req.query.endblock,
-            serializable: true,
-            abort: 1,
-            conflicts: 5,
-            transactions: 5,
-            successful: 4,
-            failed: 1
-        },
-        edges: [
-            { from: 1, to: 2 },
-            { from: 1, to: 3 },
-            { from: 2, to: 4 },
-            { from: 2, to: 5 },
-            { from: 5, to: 2},
-        ],
-        transactions: [
-            {
-                tx_number: 1,
-                tx_id: "6ff26d6a450237dab6ebfda8a6b75d9f8d21f7d4d723788920d7c18097e8fa8a",
-                block_number: 2,
-                status: 0,
-                rw_set: {
-                    reads: [
-                        {
-                            key: "1009",
-                            version: {
-                                block_num: 6,
-                                tx_num: "296"
-                            }
-                        }
-                    ],
-                    range_queries_info: [],
-                    writes: [],
-                }
-            },
-            {
-                tx_number: 2,
-                tx_id: "c9a99a620feac0fd7ef44f4050a3a1f9dda85efa26ee8995eb4b5d9a3afa7d1d",
-                block_number: 3,
-                status: 0,
-                rw_set: {
-                    reads: [
-                        {
-                            key: "1010",
-                            version: {
-                                block_num: 6,
-                                tx_num: "297"
-                            }
-                        }
-                    ],
-                    range_queries_info: [],
-                    writes: [],
-                }
-            },
-            {
-                tx_number: 3,
-                tx_id: "pl10a620feac0fd7ef44f4050a3a1f9dda85efa26ee8995eb4b5d9a3afa7d1d",
-                block_number: 4,
-                status: 0,
-                rw_set: {
-                    reads: [
-                        {
-                            key: "1000",
-                            version: {
-                                block_num: 6,
-                                tx_num: "297"
-                            }
-                        }
-                    ],
-                    range_queries_info: [],
-                    writes: [],
-                }
-            },
-            {
-                tx_number: 4,
-                tx_id: "f1o23a620feac0fd7ef44f4050a3a1f9dda85efa26ee8995eb4b5d9a3afa7d1d",
-                block_number: 6,
-                status: 0,
-                rw_set: {
-                    reads: [
-                        {
-                            key: "999",
-                            version: {
-                                block_num: 6,
-                                tx_num: "297"
-                            }
-                        }
-                    ],
-                    range_queries_info: [],
-                    writes: [],
-                }
-            },
-            {
-                tx_number: 5,
-                tx_id: "d8a99a620feac0fd7ef44f4050a3a1f9dda85efa26ee8995eb4b5d9a3afa7d1d",
-                block_number: 8,
-                status: 11,
-                rw_set: {
-                    reads: [
-                        {
-                            key: "999",
-                            version: {
-                                block_num: 6,
-                                tx_num: "297"
-                            }
-                        }
-                    ],
-                    range_queries_info: [],
-                    writes: [],
-                }
-            },
-        ],
-        },
-    );
-  }, 1000);
-});
   
 module.exports = router;
