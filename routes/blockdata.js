@@ -43,6 +43,8 @@ router.get('/graphGeneration', function(req, res, next) {
 
             const rawBlockData = fs.readFileSync(`./blockchain_data/log_store/${directory}/${directoryContents[i]}`);
             const parsedBlock = JSON.parse(rawBlockData);
+
+            console.log(parsedBlock);
     
             accTransactions = accTransactions.concat(parsedBlock.transactions);
         }

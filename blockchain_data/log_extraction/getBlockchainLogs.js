@@ -23,8 +23,8 @@ async function setClient() {
             let blockchainheight = blockchaininfo.height;
             
             if(blockchainheight < startblock) {
-                // Set endblock to startblock -> skip loop, no files will be written
-                endblock = startblock;
+                // If startblock smaller than endblock, return without retrieving data
+                return;
             }
             else if(blockchainheight < endblock) {
                 // Endblock maximum is limited by blockchain height
