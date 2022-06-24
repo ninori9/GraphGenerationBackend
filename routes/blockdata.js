@@ -46,7 +46,7 @@ router.get('/graphGeneration', function(req, res, next) {
     // Delete directory and contained json files 
     exec(`rm -r ./blockchain_data/log_store/${directory}`);
 
-    console.log('First transaction', accTransactions[0]);
+    console.log('Amount of transactions', accTransactions.length);
 
     const graphAndAttributes = createConflictGraph(accTransactions);
     const serializabilityAttributes = serializabilityCheck(graphAndAttributes.attributes.adjacencyList);
@@ -314,7 +314,6 @@ function createConflictGraph(transactions) {
     }
 
     console.log('Created conflict graph!');
-    console.log('Edges', edges)
 
     return {
         edges: edges,
@@ -333,7 +332,7 @@ function serializabilityCheck(adjacencyList) {
     console.log('Checking for serializability...');
     let cycles = findCircuits(adjacencyList);
 
-    console.log('initial cycles', cycles);
+    console.log('Initial cycles', cycles);
 
     const serializable = ! (cycles !== undefined && cycles.length > 0);
     

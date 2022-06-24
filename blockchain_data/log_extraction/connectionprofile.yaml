@@ -15,19 +15,19 @@ info:
   StateDB: goleveldb
 
 client:
-  organization: Org14
+  organization: Org1
   credentialStore:
     path: /tmp/hfc-kvs/org1
     cryptoStore:
       path: /tmp/hfc-cvs/org1
   clientPrivateKey:
-    path: /etc/hyperledger/fabric/msp/keystoree/key.pem
+    path: /etc/hyperledger/fabric/msp/keystore/key.pem
   clientSignedCert:
     path: /etc/hyperledger/fabric/msp/signcerts/cert.pem
     
 organizations:
   Org1:
-    mspid: Org21MSP
+    mspid: Org1MSP
     peers:
       - peer0.org1
     
