@@ -11,8 +11,6 @@ async function setClient() {
     const startblock = Number(process.argv[2]);
     let endblock = Number(process.argv[3]);
 
-    console.log('startblock', startblock);
-    console.log('endblock', endblock);
 
 	let client =  FabricClient.loadFromConfig('./log_extraction/connectionprofile.yaml');
 	await client.initCredentialStores().then(async (nothing) => {
