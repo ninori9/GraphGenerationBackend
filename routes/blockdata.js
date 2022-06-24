@@ -9,8 +9,6 @@ var router = express.Router();
 router.get('/graphGeneration', function(req, res, next) {
     console.log('startblock', req.query.startblock);
     console.log('endblock', req.query.endblock);
-    console.log(req.query.endblock - req.query.startblock);
-    console.log(req.query.endblock < req.query.startblock);
 
     // Check whether block parameters are valid
     if(req.query.startblock === undefined || req.query.endblock === undefined || req.query.startblock < 0 || req.query.endblock - req.query.startblock > 5 || req.query.endblock - req.query.startblock < 0) {
@@ -55,7 +53,11 @@ router.get('/graphGeneration', function(req, res, next) {
 
     // If the directory did not contain any files, or no transaction could be retrieved, send error
     if(directoryContents === undefined || directoryContents.length === 0 || accTransactions.length === 0) {
-        res.status(404).json({error: 'Could not retrieve any transactions with the given parameters. You may want to review the specied connection profile, start block, or end block.'});
+        console.log('directoryContents undefined', directoryContents === undefined);
+        console.log('directoryContents.length === 0', directoryContents.length == 0);
+        console.loog('accTx length 0', accTransactions.length === 0);
+
+        res.status(404).json({error: 'Could not retrieve any transactions with the provided parameters. You may want to review the specied connection profile, start block, or end block.'});
         return;
     }
 
@@ -81,7 +83,7 @@ router.get('/graphGeneration', function(req, res, next) {
             edges: graphAndAttributes.edges
         };
         res.send(result);
-        
+
     } catch(e) {
         console.log(e);
         res.status(500).json({error: 'An error occured during the transaction conflict graph generation.'});
