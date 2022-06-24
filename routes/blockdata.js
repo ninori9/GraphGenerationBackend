@@ -9,9 +9,11 @@ var router = express.Router();
 router.get('/graphGeneration', function(req, res, next) {
     console.log('startblock', req.query.startblock);
     console.log('endblock', req.query.endblock);
+    console.log(req.query.endblock - req.query.startblock);
+    console.log(req.query.endblock < req.query.startblock);
 
     // Check whether block parameters are valid
-    if(req.query.startblock === undefined || req.query.endblock === undefined || req.query.startblock < 0 || req.query.endblock - req.query.startblock > 5 || req.query.endblock < req.query.startblock) {
+    if(req.query.startblock === undefined || req.query.endblock === undefined || req.query.startblock < 0 || req.query.endblock - req.query.startblock > 5 || req.query.endblock - req.query.startblock < 0) {
         res.status(406).json({error: 'invalid block parameters.'});
         return;
     }
