@@ -55,10 +55,6 @@ router.get('/graphGeneration', function(req, res, next) {
 
     // If the directory did not contain any files, or no transaction could be retrieved, send error
     if(directoryContents === undefined || directoryContents.length === 0 || accTransactions.length === 0) {
-        console.log('directoryContents undefined', directoryContents === undefined);
-        console.log('directoryContents.length === 0', directoryContents.length == 0);
-        console.loog('accTx length 0', accTransactions.length === 0);
-
         res.status(404).json({error: 'Could not retrieve any transactions with the provided parameters. You may want to review the specied connection profile, start block, or end block.'});
         return;
     }
