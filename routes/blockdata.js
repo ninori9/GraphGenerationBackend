@@ -34,7 +34,7 @@ router.get('/graphGeneration', function(req, res, next) {
     // Accumulate all transactions in one array to enable determining conflict graph and attributes
     let accTransactions = [];
 
-    if(directoryContents !== undefined) {
+    if(directoryContents !== undefined && directoryContents.length !== 0) {
         // Sort the array based on block number, this is necessary as otherwise "10" < "2"
         directoryContents.sort(function(a, b) { return (parseInt(a.substring(0, a.indexOf('.'))) - parseInt(b.substring(0, b.indexOf('.')))) });
         console.log('Sorted directory contents?', directoryContents);
