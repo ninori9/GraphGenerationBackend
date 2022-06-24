@@ -14,7 +14,7 @@ router.get('/graphGeneration', function(req, res, next) {
 
     // Check whether block parameters are valid
     if(req.query.startblock === undefined || req.query.endblock === undefined || req.query.startblock < 0 || req.query.endblock - req.query.startblock > 5 || req.query.endblock - req.query.startblock < 0) {
-        res.status(406).json({error: 'invalid block parameters.'});
+        res.status(406).json({error: 'The provided block parameters are invalid.'});
         return;
     }
 
@@ -36,37 +36,57 @@ router.get('/graphGeneration', function(req, res, next) {
     // Accumulate all transactions in one array to enable determining conflict graph and attributes
     let accTransactions = [];
 
-    for(let i = 0; i<directoryContents.length; i++) {
-        const rawBlockData = fs.readFileSync(`./blockchain_data/log_store/${directory}/${directoryContents[i]}`);
-        const parsedBlock = JSON.parse(rawBlockData);
+    if(directoryContents !== undefined) {
+        // Sort the array based on block number, this is necessary as otherwise "10" < "2"
+        directoryContents.sort(function(a, b) { return (parseInt(a.substring(0, a.indexOf('.'))) - parseInt(b.substring(0, b.indexOf('.')))) });
+        console.log('Sorted directory contents?', directoryContents);
 
-        accTransactions = accTransactions.concat(parsedBlock.transactions);
+        for(let i = 0; i<directoryContents.length; i++) {
+
+            const rawBlockData = fs.readFileSync(`./blockchain_data/log_store/${directory}/${directoryContents[i]}`);
+            const parsedBlock = JSON.parse(rawBlockData);
+    
+            accTransactions = accTransactions.concat(parsedBlock.transactions);
+        }
     }
 
     // Delete directory and contained json files 
     exec(`rm -r ./blockchain_data/log_store/${directory}`);
 
+    // If the directory did not contain any files, or no transaction could be retrieved, send error
+    if(directoryContents === undefined || directoryContents.length === 0 || accTransactions.length === 0) {
+        res.status(404).json({error: 'Could not retrieve any transactions with the given parameters. You may want to review the specied connection profile, start block, or end block.'});
+        return;
+    }
+
     console.log('Amount of transactions', accTransactions.length);
 
-    const graphAndAttributes = createConflictGraph(accTransactions);
-    const serializabilityAttributes = serializabilityCheck(graphAndAttributes.attributes.adjacencyList);
+    try {
+        const graphAndAttributes = createConflictGraph(accTransactions);
+        const serializabilityAttributes = serializabilityCheck(graphAndAttributes.attributes.adjacencyList);
 
-    const result = {
-        attributes: {
-            startblock: req.query.startblock,
-            endblock: req.query.endblock,
-            serializable: serializabilityAttributes.serializable,
-            needToAbort: serializabilityAttributes.abortedTx,
-            conflicts: graphAndAttributes.attributes.totalConflicts,
-            conflictsLeadingToFailure: graphAndAttributes.attributes.conflictsLeadingToFailure,
-            transactions: accTransactions.length,
-            totalFailures: graphAndAttributes.attributes.totalFailures,
-            failureTypes: graphAndAttributes.attributes.failureAmounts
-        },
-        transactions: accTransactions,
-        edges: graphAndAttributes.edges
-    };
-    res.send(result);
+        const result = {
+            attributes: {
+                startblock: req.query.startblock,
+                endblock: req.query.endblock,
+                serializable: serializabilityAttributes.serializable,
+                needToAbort: serializabilityAttributes.abortedTx,
+                conflicts: graphAndAttributes.attributes.totalConflicts,
+                conflictsLeadingToFailure: graphAndAttributes.attributes.conflictsLeadingToFailure,
+                transactions: accTransactions.length,
+                totalFailures: graphAndAttributes.attributes.totalFailures,
+                failureTypes: graphAndAttributes.attributes.failureAmounts
+            },
+            transactions: accTransactions,
+            edges: graphAndAttributes.edges
+        };
+        res.send(result);
+        
+    } catch(e) {
+        console.log(e);
+        res.status(500).json({error: 'An error occured during the transaction conflict graph generation.'});
+        return;
+    }
 });
 
 router.get('/ggTest', function(req, res, next) {
