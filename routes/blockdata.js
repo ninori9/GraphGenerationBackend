@@ -7,8 +7,6 @@ var router = express.Router();
 
 /* Endpoint to get parsed data for graph generation from blockchain */
 router.get('/graphGeneration', function(req, res, next) {
-    console.log('startblock', req.query.startblock);
-    console.log('endblock', req.query.endblock);
 
     // Check whether block parameters are valid
     if(req.query.startblock === undefined || req.query.endblock === undefined || req.query.startblock < 0 || req.query.endblock - req.query.startblock > 5 || req.query.endblock - req.query.startblock < 0) {
@@ -25,11 +23,11 @@ router.get('/graphGeneration', function(req, res, next) {
     console.log('Changed permissions of extraction script');
 
     execSync( `sh ./blockchain_data/logExtraction.sh ${req.query.startblock} ${req.query.endblock} ${directory}`, { stdio: 'ignore' });
-    console.log('Executed shell script');
+    console.log('Executed data extraction shell script');
 
     // Get files in directory (this is needed as specified blocks might not all be part of blockchain)
     const directoryContents = fs.readdirSync(`./blockchain_data/log_store/${directory}`);
-    console.log('directoryContents: ', directoryContents);
+
 
     // Accumulate all transactions in one array to enable determining conflict graph and attributes
     let accTransactions = [];
@@ -37,7 +35,6 @@ router.get('/graphGeneration', function(req, res, next) {
     if(directoryContents !== undefined && directoryContents.length !== 0) {
         // Sort the array based on block number, this is necessary as otherwise "10" < "2"
         directoryContents.sort(function(a, b) { return (parseInt(a.substring(0, a.indexOf('.'))) - parseInt(b.substring(0, b.indexOf('.')))) });
-        console.log('Sorted directory contents?', directoryContents);
 
         for(let i = 0; i<directoryContents.length; i++) {
 
@@ -59,10 +56,11 @@ router.get('/graphGeneration', function(req, res, next) {
         return;
     }
 
-    console.log('Amount of transactions', accTransactions.length);
 
     try {
+        // Create conflict graph
         const graphAndAttributes = createConflictGraph(accTransactions);
+        // Check serializability
         const serializabilityAttributes = serializabilityCheck(graphAndAttributes.attributes.adjacencyList);
 
         const result = {
@@ -323,10 +321,6 @@ function createConflictGraph(transactions) {
         }
     }
 
-    console.log('failureAmounts', failureAmounts);
-    console.log('adjacencyList', adjacencyList);
-    console.log('totalConflicts', totalConflicts);
-
     // Parse failure type amounts
     const parsedFailureAmounts = [];
     for(failureStatusAmount of failureAmounts) {
@@ -351,8 +345,6 @@ function createConflictGraph(transactions) {
 function serializabilityCheck(adjacencyList) {
     console.log('Checking for serializability...');
     let cycles = findCircuits(adjacencyList);
-
-    console.log('Initial cycles', cycles);
 
     const serializable = ! (cycles !== undefined && cycles.length > 0);
     
@@ -390,10 +382,9 @@ function serializabilityCheck(adjacencyList) {
         });
 
         abortedTx.push(txToBeAborted);
-        console.log('txToBeAborted involved in X cycles', txToBeAborted, maximum);
 
+        // Exclude cycles that are broken as tx aborted
         cycles = cycles.filter(cycle => (! cycle.includes(txToBeAborted)) );
-        console.log('cycles', cycles);
     }
 
     console.log('Done checking for serializability.');
