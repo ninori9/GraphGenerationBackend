@@ -92,7 +92,7 @@ async function setClient() {
                                 tx_class = 'Update';
                             }
                             else {
-                                tx_class = 'CONFIG';
+                                tx_class = 'Undefined';
                             }
 
                             const tx_endorsements = block.data.data[j].payload.data.actions[0].payload.action.endorsements;
