@@ -2,9 +2,29 @@
 
 This project is written in JavaScript and Shell, uses Node.js, Express.js, and the Hyperledger Fabric SDK for Node.js, and serves as the backend for an application that generates transaction conflict graphs (also called precedence graphs or serializability graphs) from transactions of the Hyperledger Fabric blockchain.
 
-The app provides an endpoint ([http://localhost:3007/graphGeneration](http://localhost:3007/graphGeneration)), which receives startblock and endblock query parameters, extracts data from that block range from the Hyperledger Fabric blockchain (see [blockchain_data](https://github.com/ninori9/GraphGenerationBackend/tree/master/blockchain_data) folder), creates a transaction conflict graph, and checks for serializability using [Johnson's algorithm](http://www.cs.tufts.edu/comp/150GA/homeworks/hw1/Johnson%2075.PDF).
+The app provides an endpoint ([http://localhost:3007/graphGeneration?startblock=<start block value>&endblock=<end block value>](http://localhost:3007/graphGeneration)), which receives startblock and endblock query parameters, extracts data from that block range from the Hyperledger Fabric blockchain (see [blockchain_data](https://github.com/ninori9/GraphGenerationBackend/tree/master/blockchain_data) folder), creates a transaction conflict graph, and checks for serializability using [Johnson's algorithm](http://www.cs.tufts.edu/comp/150GA/homeworks/hw1/Johnson%2075.PDF).
 
 To see a visualization of the generated graphs, this app should be run together with the corresponding [frontend](https://github.com/ninori9/GraphGenerationFrontend).
+
+## Endpoint
+
+The app provides an endpoint ([http://localhost:3007/graphGeneration?startblock=<start block value>&endblock=<end block value>](http://localhost:3007/graphGeneration)), which receives startblock and endblock query parameters, and executes the following steps successively:
+
+1. Extraction of transactions data within the specified block range fom the Hyperledger Fabric blockchain
+2. Transaction conflict graph generation (edges, ndoes, and specific attributes (such as types of failure))
+3. Serializability check
+
+## Data extraction
+
+All the code related to the extraction of the transaction data from the Hyperledger Fabric blockchain can be found in the [blockchain_data](https://github.com/ninori9/GraphGenerationBackend/tree/master/blockchain_data) folder.
+
+For this purpose, the [logExtraction.sh](https://github.com/ninori9/GraphGenerationBackend/blob/master/blockchain_data/logExtraction.sh) script is called. It connects to the Fabric network with the [connection profile](https://github.com/ninori9/GraphGenerationBackend/blob/master/blockchain_data/log_extraction/connectionprofile.yaml), and queries and parses the block data from the specified block range. This data is then written to .json files, which are subsequently copied to the backend server.
+
+## Graph Generation
+
+## Serializability Check
+
+All cycles of the graph are detected using [Johnson's algorithm](http://www.cs.tufts.edu/comp/150GA/homeworks/hw1/Johnson%2075.PDF). If there are no cycles, the set of transactions is serializable. Otherwise, the transactions involved in the most cycles are iteratively removed (and added to the array of transactions that would need to be aborted to ensure serializability) until there are no cycles left.
 
 ## How to use
 
