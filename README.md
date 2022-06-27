@@ -8,13 +8,11 @@ To see a visualization of the generated graphs, this app should be run together 
 
 ## How to use
 
+### Modify the [connection profile](https://github.com/ninori9/GraphGenerationBackend/blob/master/blockchain_data/log_extraction/connectionprofile.yaml) to match the Fabric network.
+
 If you start the frontend for the first time, run:
 
 ### `npm install`
-
-
-### Modify the [connection profile](https://github.com/ninori9/GraphGenerationBackend/blob/master/blockchain_data/log_extraction/connectionprofile.yaml) to match the Fabric network.
-
 
 In the project directory, you can run:
 
