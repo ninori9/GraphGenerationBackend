@@ -20,13 +20,13 @@ The [logExtraction.sh](https://github.com/ninori9/GraphGenerationBackend/blob/ma
 
 ## Graph Generation
   
-To create the transaction conflict graph, a map is used which maps each key to the transactions that access that key. A combined read/write-set, which contains all the operations of a transaction a their accessed key, is created for each transaction. To create the edges of the graph, the following two checks are done:
+To create the transaction conflict graph, a map is used which maps each key to the transactions that access that key. A combined read/write-set, which contains the operations of a transaction and their accessed key, is created for each transaction. To create the edges of the graph, the following two checks are done:
   
-  If the entry in the set is a write transaction, the prior read transactions are searched for in the key map.
+  - If the entry in the set is a write transaction, the prior read transactions are searched for in the key map.
   
-  If the entry is a failed read operation, the reason for the failure, which is a prior write transaction that overwrote the version of key read by the read operation, is detected.
+  - If the entry is a failed read operation, the reason for the failure, which is a prior write transaction that overwrote the version of key read by the read operation, is detected.
   
-In any case, the transaction is added to any key in the key map, which it accesses in an operation.
+In any case, the transaction is added to any key of the key map, which it accesses in an operation.
 
 ## Serializability Check
 
