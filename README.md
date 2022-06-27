@@ -26,7 +26,7 @@ To create the transaction conflict graph, a map is used which maps each key to t
   
   - If the entry is a failed read operation, the reason for the failure, which is a prior write transaction that overwrote the version of key read by the read operation, is detected.
   
-In any case, the transaction is added to any key of the key map, which it accesses in an operation.
+In any case, the transaction is added to any key of the key map, which it accesses in an operation. Additionally, attributes of the transaction conflict graph, such as the number of conflicts or the type of failures, are gathered.
 
 ## Serializability Check
 
