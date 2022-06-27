@@ -1,6 +1,6 @@
 # Hyperledger Fabric Transaction Conflict Graph Generation Backend
 
-This project is written in JavaScript and Shell, uses Node.js, express and Fabric-client, and serves as the backend for an application that generates transaction conflict graphs (also called precedence graphs or serializability graphs) from transactions of the Hyperledger Fabric blockchain.
+This project is written in JavaScript and Shell, uses Node.js, Express.js, and the Hyperledger Fabric SDK for Node.js, and serves as the backend for an application that generates transaction conflict graphs (also called precedence graphs or serializability graphs) from transactions of the Hyperledger Fabric blockchain.
 
 The app provides an endpoint ([http://localhost:3007/graphGeneration](http://localhost:3007/graphGeneration)), which receives startblock and endblock query parameters, extracts data from that block range from the Hyperledger Fabric blockchain (see [blockchain_data](https://github.com/ninori9/GraphGenerationBackend/tree/master/blockchain_data) folder), creates a transaction conflict graph, and checks for serializability using [Johnson's algorithm](http://www.cs.tufts.edu/comp/150GA/homeworks/hw1/Johnson%2075.PDF).
 
