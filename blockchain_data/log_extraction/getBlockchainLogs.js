@@ -54,7 +54,7 @@ async function setClient() {
                                 {
                                     tx_number: current_tx_num,
                                     tx_id: block.data.data[j].payload.header.channel_header.tx_id,
-                                    creator: block.data.data[j].payload.header.signature_header.creator,
+                                    creator: block.data.data[j].payload.header.signature_header.creator.Mspid,
                                     typeString: tx_type_string,
                                     block_number: index,
                                     tx_block_number: j,
