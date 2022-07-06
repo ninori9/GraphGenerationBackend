@@ -40,8 +40,6 @@ router.get('/graphGeneration', function(req, res, next) {
 
             const rawBlockData = fs.readFileSync(`./blockchain_data/log_store/${directory}/${directoryContents[i]}`);
             const parsedBlock = JSON.parse(rawBlockData);
-
-            console.log(parsedBlock);
     
             accTransactions = accTransactions.concat(parsedBlock.transactions);
         }
@@ -283,7 +281,7 @@ function createConflictGraph(transactions) {
                                     readButNoConflict = false;
 
                                     // Find out if inter or intra block conflict
-                                    if(conflicting_entries[j].block_num === tx.block_number) {
+                                    if(conflicting_entries[c].block_num === tx.block_number) {
                                         intraBlockConflicts++;
                                     }
                                     else {
