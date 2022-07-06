@@ -73,7 +73,9 @@ router.get('/graphGeneration', function(req, res, next) {
                 conflictsLeadingToFailure: graphAndAttributes.attributes.conflictsLeadingToFailure,
                 transactions: accTransactions.length,
                 totalFailures: graphAndAttributes.attributes.totalFailures,
-                failureTypes: graphAndAttributes.attributes.failureAmounts
+                failureTypes: graphAndAttributes.attributes.failureAmounts,
+                interBlockConflicts: graphAndAttributes.attributes.interBlockConflicts,
+                intraBlockConflicts: graphAndAttributes.attributes.intraBlockConflicts,
             },
             transactions: accTransactions,
             edges: graphAndAttributes.edges
@@ -102,7 +104,9 @@ router.get('/ggTest', function(req, res, next) {
             conflictsLeadingToFailure: graphAndAttributes.attributes.conflictsLeadingToFailure,
             transactions: tx.length,
             totalFailures: graphAndAttributes.attributes.totalFailures,
-            failureTypes: graphAndAttributes.attributes.failureAmounts
+            failureTypes: graphAndAttributes.attributes.failureAmounts,
+            interBlockConflicts: graphAndAttributes.attributes.interBlockConflicts,
+            intraBlockConflicts: graphAndAttributes.attributes.intraBlockConflicts,
         },
         transactions: tx,
         edges: graphAndAttributes.edges
@@ -127,6 +131,9 @@ function createConflictGraph(transactions) {
     const failureAmounts = new Map();
     let totalFailures = 0;
 
+    let intraBlockConflicts = 0; // Reason for failure in same block
+    let interBlockConflicts = 0; // Reason for failure in different blocks
+
     let totalConflicts = 0;
     let conflictsLeadingToFailure = 0;
 
@@ -149,7 +156,7 @@ function createConflictGraph(transactions) {
             // Create list of all ns_rwsets to consider (have to match tx chaincode, no system chaincodes)
             let tx_rw_sets = [];
             for(let j=0; j<tx.rw_set.length; j++) {
-                if(tx.rw_set[j].namespace === tx.chaincode_spec.chaincode_id.name) {
+                if(tx.rw_set[j].namespace === tx.chaincode_spec.chaincode) {
                     tx_rw_sets.push(tx.rw_set[j].rwset);
                 }
             }
@@ -228,6 +235,9 @@ function createConflictGraph(transactions) {
                 }
             }
 
+            // Per transaction: if transaction failed and contains a read, but no conflict can be determined --> inter-block conflict to prior block
+            let readButNoConflict = combined_rw_set.filter(rw => rw.read === true).length > 0 && (tx.status === 11 || tx.status === 12);
+
             // Sets to quickly look up whether a dependency between two transactions is caused by multiple keys
             const addedEdgesFrom = new Set(); const addedEdgesTo = new Set();
             // For all keys of combined rw_set of transaction, create keyMap entry and possibly check for edges
@@ -239,9 +249,10 @@ function createConflictGraph(transactions) {
                     // If transaction is a failed read transaction, search for reason (prior write) and add edge
                     if(combined_rw_set[j].read && tx.status !== 0) {
                         // Entry at key is conflicting if there exists a prior write transaction and its write_version is bigger than read version of tx
-                        const conflicting_entries = keyMap.get(combined_rw_set[j].key).filter(entry => entry.write &&
+                        const conflicting_entries = keyMap.get(combined_rw_set[j].key).filter(entry => entry.write && 
                             (entry.write_version.block_num > combined_rw_set[j].read_version.block_num || entry.write_version.block_num === combined_rw_set[j].read_version.block_num && entry.write_version.tx_num > combined_rw_set[j].read_version.tx_num)
                         );
+
                         // Add an edge for all conflicting entries
                         for(let c=0; c<conflicting_entries.length; c++) {
                             // If an edge form the conflicting transaction to tx already exists due to another key, add this key to key_overlap of edge
@@ -256,15 +267,30 @@ function createConflictGraph(transactions) {
                                         from: conflicting_entries[c].tx,
                                         to: tx.tx_number,
                                         key_overlap: [combined_rw_set[j].key],
-                                        reason_for_failure: true,
+                                        reason_for_failure: conflicting_entries[c].status === 0,
                                     }
                                 );
                                 addedEdgesFrom.add(conflicting_entries[c].tx);
                                 adjacencyList[conflicting_entries[c].tx].push(tx.tx_number);
                                 current_edge_number++;
+
+                                // Every edge corresponds to a dependency
+                                totalConflicts++;
+                                
+                                // Prior successful write caused failrue, test if in same or different block
+                                if(conflicting_entries[c].status === 0 && (tx.status === 11 || tx.status === 12)) {
+                                    conflictsLeadingToFailure++;
+                                    readButNoConflict = false;
+
+                                    // Find out if inter or intra block conflict
+                                    if(conflicting_entries[j].block_num === tx.block_number) {
+                                        intraBlockConflicts++;
+                                    }
+                                    else {
+                                        interBlockConflicts++;
+                                    }
+                                }
                             }
-                            totalConflicts++;
-                            conflictsLeadingToFailure++;
                         }
                     }
                     // If write, search for preceding reads accessing the same key
@@ -289,14 +315,18 @@ function createConflictGraph(transactions) {
                                 addedEdgesTo.add(conflicting_entries[c].tx);
                                 adjacencyList[tx.tx_number].push(conflicting_entries[c].tx);
                                 current_edge_number++;
+
+                                // Every edge corresponds to a dependency
+                                totalConflicts++;
                             }
-                            totalConflicts++;
                         }
                     }
                     // Add transaction to keyMap
                     keyMap.get(combined_rw_set[j].key).push(
                         {
                             tx: tx.tx_number,
+                            status: tx.status,
+                            block_num: tx.block_number,
                             read: combined_rw_set[j].read,
                             read_version: combined_rw_set[j].read_version,
                             write: combined_rw_set[j].write,
@@ -310,6 +340,8 @@ function createConflictGraph(transactions) {
                     keyMap.set(combined_rw_set[j].key, [
                         {
                             tx: tx.tx_number,
+                            status: tx.status,
+                            block_num: tx.block_number,
                             read: combined_rw_set[j].read,
                             read_version: combined_rw_set[j].read_version,
                             write: combined_rw_set[j].write,
@@ -317,6 +349,11 @@ function createConflictGraph(transactions) {
                         }
                     ]);
                 }
+            }
+
+            // If transaction is read tx that failed due to MVCC Read conflict or Phantom Read Conflict
+            if(readButNoConflict) {
+                interBlockConflicts++;
             }
         }
     }
@@ -326,6 +363,9 @@ function createConflictGraph(transactions) {
     for(failureStatusAmount of failureAmounts) {
         parsedFailureAmounts.push(failureStatusAmount);
     }
+
+    console.log('Interblock', interBlockConflicts);
+    console.log('Intrablock', intraBlockConflicts);
 
     console.log('Created conflict graph!');
 
@@ -337,6 +377,8 @@ function createConflictGraph(transactions) {
             conflictsLeadingToFailure: conflictsLeadingToFailure,
             failureAmounts: parsedFailureAmounts,
             adjacencyList: adjacencyList,
+            interBlockConflicts: interBlockConflicts,
+            intraBlockConflicts: intraBlockConflicts,
         }
     }
 }
@@ -402,10 +444,7 @@ function exampleTransactions() {
         {
             tx_number: 0,
             tx_id: "b6b0593e3dcd1818bc2f63fdb21fbc0062610bada76b8472f9b1cc412436ac7f",
-            creator: {
-                Mspid: "Org1MSP",
-                IdBytes: "-----BEGIN CERTIFICATE-----\nMIICBTCCAaugAwIBAgIRALIjogqwdNLqTj93y5OujnowCgYIKoZIzj0EAwIwWzEL\nMAkGA1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWExFjAUBgNVBAcTDVNhbiBG\ncmFuY2lzY28xDTALBgNVBAoTBG9yZzExEDAOBgNVBAMTB2NhLm9yZzEwHhcNMjIw\nNjE0MDkyNTAwWhcNMzIwNjExMDkyNTAwWjBeMQswCQYDVQQGEwJVUzETMBEGA1UE\nCBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNU2FuIEZyYW5jaXNjbzENMAsGA1UECxME\ncGVlcjETMBEGA1UEAxMKcGVlcjAub3JnMTBZMBMGByqGSM49AgEGCCqGSM49AwEH\nA0IABIKwAk1B/C+j7Qut/IGg3FDvgCFVYCjxkuDyjUWON0JxtLUI9aU5zxb6PTce\nqmbHadKs47W4g4SAlk+eLvPxWZWjTTBLMA4GA1UdDwEB/wQEAwIHgDAMBgNVHRMB\nAf8EAjAAMCsGA1UdIwQkMCKAIBOvXfL41Zmdp1yoZ/YWZfWd8QR5EwaPf8d5kDNl\nCL/PMAoGCCqGSM49BAMCA0gAMEUCIQCIoLNmcZLi1eqoIszPp8LjTWi0nycRm+Ay\nOht76uxQbAIgSkpx6NE6oIOiMi3fSJ7d5NfhMdLIfn789SmdesUJdzQ=\n-----END CERTIFICATE-----\n"
-            },
+            creator: "Org1MSP",
             class: "Update",
             typeString: "ENDORSER_TRANSACTION",
             block_number: 15,
@@ -462,37 +501,24 @@ function exampleTransactions() {
                 }
             ],
             chaincode_spec: {
-                type: 1,
-                typeString: "GOLANG",
-                chaincode_id: {
-                    path: "",
-                    name: "simplesupplychain",
-                    version: ""
-                }
+                chaincode: "simplesupplychain",
+                function: [
+                    80,
+                    117,
+                    115,
+                    104,
+                    65,
+                    83,
+                    78
+                ]
             },
-            endorsements: [
-                {
-                    endorser: {
-                        Mspid: "Org1MSP",
-                        IdBytes: "-----BEGIN CERTIFICATE-----\nMIICBTCCAaugAwIBAgIRALIjogqwdNLqTj93y5OujnowCgYIKoZIzj0EAwIwWzEL\nMAkGA1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWExFjAUBgNVBAcTDVNhbiBG\ncmFuY2lzY28xDTALBgNVBAoTBG9yZzExEDAOBgNVBAMTB2NhLm9yZzEwHhcNMjIw\nNjE0MDkyNTAwWhcNMzIwNjExMDkyNTAwWjBeMQswCQYDVQQGEwJVUzETMBEGA1UE\nCBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNU2FuIEZyYW5jaXNjbzENMAsGA1UECxME\ncGVlcjETMBEGA1UEAxMKcGVlcjAub3JnMTBZMBMGByqGSM49AgEGCCqGSM49AwEH\nA0IABIKwAk1B/C+j7Qut/IGg3FDvgCFVYCjxkuDyjUWON0JxtLUI9aU5zxb6PTce\nqmbHadKs47W4g4SAlk+eLvPxWZWjTTBLMA4GA1UdDwEB/wQEAwIHgDAMBgNVHRMB\nAf8EAjAAMCsGA1UdIwQkMCKAIBOvXfL41Zmdp1yoZ/YWZfWd8QR5EwaPf8d5kDNl\nCL/PMAoGCCqGSM49BAMCA0gAMEUCIQCIoLNmcZLi1eqoIszPp8LjTWi0nycRm+Ay\nOht76uxQbAIgSkpx6NE6oIOiMi3fSJ7d5NfhMdLIfn789SmdesUJdzQ=\n-----END CERTIFICATE-----\n"
-                    }
-                },
-                {
-                    endorser: {
-                        Mspid: "Org2MSP",
-                        IdBytes: "-----BEGIN CERTIFICATE-----\nMIICBTCCAaugAwIBAgIRAM+rm/PPu8IoXe6YbcL7RVMwCgYIKoZIzj0EAwIwWzEL\nMAkGA1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWExFjAUBgNVBAcTDVNhbiBG\ncmFuY2lzY28xDTALBgNVBAoTBG9yZzIxEDAOBgNVBAMTB2NhLm9yZzIwHhcNMjIw\nNjE0MDkyNTAwWhcNMzIwNjExMDkyNTAwWjBeMQswCQYDVQQGEwJVUzETMBEGA1UE\nCBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNU2FuIEZyYW5jaXNjbzENMAsGA1UECxME\ncGVlcjETMBEGA1UEAxMKcGVlcjAub3JnMjBZMBMGByqGSM49AgEGCCqGSM49AwEH\nA0IABMFWcOC3f9OAbVQc6ttVJdjoG7Hr5DI+UmeNa7D6QFGrz9hmxW+/Y69cso1Q\n82T5s9hHUTzupBrm2kGBWhJiK5KjTTBLMA4GA1UdDwEB/wQEAwIHgDAMBgNVHRMB\nAf8EAjAAMCsGA1UdIwQkMCKAIC+hKL3nL0qMPzL8RdbSoPfR7Fyx11Hx0DoGw+M5\nRm7UMAoGCCqGSM49BAMCA0gAMEUCIQD7QlwhDtH5Nl+AzH9wLyPWoaeIel4vYWjq\nDREVzMAWvwIgZjMSdiGBtzSwt/45nI/z6l6wCaRH1zWp3k9wQVuZ2WM=\n-----END CERTIFICATE-----\n"
-                    }
-                }
-            ],
-            status: 0
+            endorsements: ["Org1MSP", "Org2MSP"],
+            status: 11
         },
         {
             tx_number: 1,
             tx_id: "f50e4b086c43aa1c8cba91a66f37b8a85414e3edbc758a8e72db906c73ba5e76",
-            creator: {
-                Mspid: "Org1MSP",
-                IdBytes: "-----BEGIN CERTIFICATE-----\nMIICBTCCAaugAwIBAgIRALIjogqwdNLqTj93y5OujnowCgYIKoZIzj0EAwIwWzEL\nMAkGA1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWExFjAUBgNVBAcTDVNhbiBG\ncmFuY2lzY28xDTALBgNVBAoTBG9yZzExEDAOBgNVBAMTB2NhLm9yZzEwHhcNMjIw\nNjE0MDkyNTAwWhcNMzIwNjExMDkyNTAwWjBeMQswCQYDVQQGEwJVUzETMBEGA1UE\nCBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNU2FuIEZyYW5jaXNjbzENMAsGA1UECxME\ncGVlcjETMBEGA1UEAxMKcGVlcjAub3JnMTBZMBMGByqGSM49AgEGCCqGSM49AwEH\nA0IABIKwAk1B/C+j7Qut/IGg3FDvgCFVYCjxkuDyjUWON0JxtLUI9aU5zxb6PTce\nqmbHadKs47W4g4SAlk+eLvPxWZWjTTBLMA4GA1UdDwEB/wQEAwIHgDAMBgNVHRMB\nAf8EAjAAMCsGA1UdIwQkMCKAIBOvXfL41Zmdp1yoZ/YWZfWd8QR5EwaPf8d5kDNl\nCL/PMAoGCCqGSM49BAMCA0gAMEUCIQCIoLNmcZLi1eqoIszPp8LjTWi0nycRm+Ay\nOht76uxQbAIgSkpx6NE6oIOiMi3fSJ7d5NfhMdLIfn789SmdesUJdzQ=\n-----END CERTIFICATE-----\n"
-            },
+            creator: "Org1MSP",
             class: "Range Query",
             typeString: "ENDORSER_TRANSACTION",
             block_number: 15,
@@ -565,37 +591,24 @@ function exampleTransactions() {
                 }
             ],
             chaincode_spec: {
-                type: 1,
-                typeString: "GOLANG",
-                chaincode_id: {
-                    path: "",
-                    name: "simplesupplychain",
-                    version: ""
-                }
+                chaincode: "simplesupplychain",
+                function: [
+                    80,
+                    117,
+                    115,
+                    104,
+                    65,
+                    83,
+                    78
+                ]
             },
-            endorsements: [
-                {
-                    endorser: {
-                        Mspid: "Org1MSP",
-                        IdBytes: "-----BEGIN CERTIFICATE-----\nMIICBTCCAaugAwIBAgIRALIjogqwdNLqTj93y5OujnowCgYIKoZIzj0EAwIwWzEL\nMAkGA1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWExFjAUBgNVBAcTDVNhbiBG\ncmFuY2lzY28xDTALBgNVBAoTBG9yZzExEDAOBgNVBAMTB2NhLm9yZzEwHhcNMjIw\nNjE0MDkyNTAwWhcNMzIwNjExMDkyNTAwWjBeMQswCQYDVQQGEwJVUzETMBEGA1UE\nCBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNU2FuIEZyYW5jaXNjbzENMAsGA1UECxME\ncGVlcjETMBEGA1UEAxMKcGVlcjAub3JnMTBZMBMGByqGSM49AgEGCCqGSM49AwEH\nA0IABIKwAk1B/C+j7Qut/IGg3FDvgCFVYCjxkuDyjUWON0JxtLUI9aU5zxb6PTce\nqmbHadKs47W4g4SAlk+eLvPxWZWjTTBLMA4GA1UdDwEB/wQEAwIHgDAMBgNVHRMB\nAf8EAjAAMCsGA1UdIwQkMCKAIBOvXfL41Zmdp1yoZ/YWZfWd8QR5EwaPf8d5kDNl\nCL/PMAoGCCqGSM49BAMCA0gAMEUCIQCIoLNmcZLi1eqoIszPp8LjTWi0nycRm+Ay\nOht76uxQbAIgSkpx6NE6oIOiMi3fSJ7d5NfhMdLIfn789SmdesUJdzQ=\n-----END CERTIFICATE-----\n"
-                    }
-                },
-                {
-                    endorser: {
-                        Mspid: "Org2MSP",
-                        IdBytes: "-----BEGIN CERTIFICATE-----\nMIICBTCCAaugAwIBAgIRAM+rm/PPu8IoXe6YbcL7RVMwCgYIKoZIzj0EAwIwWzEL\nMAkGA1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWExFjAUBgNVBAcTDVNhbiBG\ncmFuY2lzY28xDTALBgNVBAoTBG9yZzIxEDAOBgNVBAMTB2NhLm9yZzIwHhcNMjIw\nNjE0MDkyNTAwWhcNMzIwNjExMDkyNTAwWjBeMQswCQYDVQQGEwJVUzETMBEGA1UE\nCBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNU2FuIEZyYW5jaXNjbzENMAsGA1UECxME\ncGVlcjETMBEGA1UEAxMKcGVlcjAub3JnMjBZMBMGByqGSM49AgEGCCqGSM49AwEH\nA0IABMFWcOC3f9OAbVQc6ttVJdjoG7Hr5DI+UmeNa7D6QFGrz9hmxW+/Y69cso1Q\n82T5s9hHUTzupBrm2kGBWhJiK5KjTTBLMA4GA1UdDwEB/wQEAwIHgDAMBgNVHRMB\nAf8EAjAAMCsGA1UdIwQkMCKAIC+hKL3nL0qMPzL8RdbSoPfR7Fyx11Hx0DoGw+M5\nRm7UMAoGCCqGSM49BAMCA0gAMEUCIQD7QlwhDtH5Nl+AzH9wLyPWoaeIel4vYWjq\nDREVzMAWvwIgZjMSdiGBtzSwt/45nI/z6l6wCaRH1zWp3k9wQVuZ2WM=\n-----END CERTIFICATE-----\n"
-                    }
-                }
-            ],
+            endorsements: ["Org1MSP", "Org2MSP"],
             status: 0
         },
         {
             tx_number: 2,
             tx_id: "a4027bcfa477f1b5793fd011734aa295bb5bae60e384df1995a6d2b5c858290a",
-            creator: {
-                Mspid: "Org1MSP",
-                IdBytes: "-----BEGIN CERTIFICATE-----\nMIICBTCCAaugAwIBAgIRALIjogqwdNLqTj93y5OujnowCgYIKoZIzj0EAwIwWzEL\nMAkGA1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWExFjAUBgNVBAcTDVNhbiBG\ncmFuY2lzY28xDTALBgNVBAoTBG9yZzExEDAOBgNVBAMTB2NhLm9yZzEwHhcNMjIw\nNjE0MDkyNTAwWhcNMzIwNjExMDkyNTAwWjBeMQswCQYDVQQGEwJVUzETMBEGA1UE\nCBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNU2FuIEZyYW5jaXNjbzENMAsGA1UECxME\ncGVlcjETMBEGA1UEAxMKcGVlcjAub3JnMTBZMBMGByqGSM49AgEGCCqGSM49AwEH\nA0IABIKwAk1B/C+j7Qut/IGg3FDvgCFVYCjxkuDyjUWON0JxtLUI9aU5zxb6PTce\nqmbHadKs47W4g4SAlk+eLvPxWZWjTTBLMA4GA1UdDwEB/wQEAwIHgDAMBgNVHRMB\nAf8EAjAAMCsGA1UdIwQkMCKAIBOvXfL41Zmdp1yoZ/YWZfWd8QR5EwaPf8d5kDNl\nCL/PMAoGCCqGSM49BAMCA0gAMEUCIQCIoLNmcZLi1eqoIszPp8LjTWi0nycRm+Ay\nOht76uxQbAIgSkpx6NE6oIOiMi3fSJ7d5NfhMdLIfn789SmdesUJdzQ=\n-----END CERTIFICATE-----\n"
-            },
+            creator: "Org1MSP",
             class: "Update",
             typeString: "ENDORSER_TRANSACTION",
             block_number: 15,
@@ -657,40 +670,27 @@ function exampleTransactions() {
                 }
             ],
             chaincode_spec: {
-                type: 1,
-                typeString: "GOLANG",
-                chaincode_id: {
-                    path: "",
-                    name: "simplesupplychain",
-                    version: ""
-                }
+                chaincode: "simplesupplychain",
+                function: [
+                    80,
+                    117,
+                    115,
+                    104,
+                    65,
+                    83,
+                    78
+                ]
             },
-            endorsements: [
-                {
-                    endorser: {
-                        Mspid: "Org1MSP",
-                        IdBytes: "-----BEGIN CERTIFICATE-----\nMIICBTCCAaugAwIBAgIRALIjogqwdNLqTj93y5OujnowCgYIKoZIzj0EAwIwWzEL\nMAkGA1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWExFjAUBgNVBAcTDVNhbiBG\ncmFuY2lzY28xDTALBgNVBAoTBG9yZzExEDAOBgNVBAMTB2NhLm9yZzEwHhcNMjIw\nNjE0MDkyNTAwWhcNMzIwNjExMDkyNTAwWjBeMQswCQYDVQQGEwJVUzETMBEGA1UE\nCBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNU2FuIEZyYW5jaXNjbzENMAsGA1UECxME\ncGVlcjETMBEGA1UEAxMKcGVlcjAub3JnMTBZMBMGByqGSM49AgEGCCqGSM49AwEH\nA0IABIKwAk1B/C+j7Qut/IGg3FDvgCFVYCjxkuDyjUWON0JxtLUI9aU5zxb6PTce\nqmbHadKs47W4g4SAlk+eLvPxWZWjTTBLMA4GA1UdDwEB/wQEAwIHgDAMBgNVHRMB\nAf8EAjAAMCsGA1UdIwQkMCKAIBOvXfL41Zmdp1yoZ/YWZfWd8QR5EwaPf8d5kDNl\nCL/PMAoGCCqGSM49BAMCA0gAMEUCIQCIoLNmcZLi1eqoIszPp8LjTWi0nycRm+Ay\nOht76uxQbAIgSkpx6NE6oIOiMi3fSJ7d5NfhMdLIfn789SmdesUJdzQ=\n-----END CERTIFICATE-----\n"
-                    }
-                },
-                {
-                    endorser: {
-                        Mspid: "Org2MSP",
-                        IdBytes: "-----BEGIN CERTIFICATE-----\nMIICBTCCAaugAwIBAgIRAM+rm/PPu8IoXe6YbcL7RVMwCgYIKoZIzj0EAwIwWzEL\nMAkGA1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWExFjAUBgNVBAcTDVNhbiBG\ncmFuY2lzY28xDTALBgNVBAoTBG9yZzIxEDAOBgNVBAMTB2NhLm9yZzIwHhcNMjIw\nNjE0MDkyNTAwWhcNMzIwNjExMDkyNTAwWjBeMQswCQYDVQQGEwJVUzETMBEGA1UE\nCBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNU2FuIEZyYW5jaXNjbzENMAsGA1UECxME\ncGVlcjETMBEGA1UEAxMKcGVlcjAub3JnMjBZMBMGByqGSM49AgEGCCqGSM49AwEH\nA0IABMFWcOC3f9OAbVQc6ttVJdjoG7Hr5DI+UmeNa7D6QFGrz9hmxW+/Y69cso1Q\n82T5s9hHUTzupBrm2kGBWhJiK5KjTTBLMA4GA1UdDwEB/wQEAwIHgDAMBgNVHRMB\nAf8EAjAAMCsGA1UdIwQkMCKAIC+hKL3nL0qMPzL8RdbSoPfR7Fyx11Hx0DoGw+M5\nRm7UMAoGCCqGSM49BAMCA0gAMEUCIQD7QlwhDtH5Nl+AzH9wLyPWoaeIel4vYWjq\nDREVzMAWvwIgZjMSdiGBtzSwt/45nI/z6l6wCaRH1zWp3k9wQVuZ2WM=\n-----END CERTIFICATE-----\n"
-                    }
-                }
-            ],
+            endorsements: ["Org1MSP", "Org2MSP"],
             status: 0
         },
         {
             tx_number: 3,
             tx_id: "3c50a3ed31a4e9f5c58818d65cabe7f57471a2bc9cfef6876a0a6466478a8875",
-            creator: {
-                Mspid: "Org1MSP",
-                IdBytes: "-----BEGIN CERTIFICATE-----\nMIICBTCCAaugAwIBAgIRALIjogqwdNLqTj93y5OujnowCgYIKoZIzj0EAwIwWzEL\nMAkGA1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWExFjAUBgNVBAcTDVNhbiBG\ncmFuY2lzY28xDTALBgNVBAoTBG9yZzExEDAOBgNVBAMTB2NhLm9yZzEwHhcNMjIw\nNjE0MDkyNTAwWhcNMzIwNjExMDkyNTAwWjBeMQswCQYDVQQGEwJVUzETMBEGA1UE\nCBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNU2FuIEZyYW5jaXNjbzENMAsGA1UECxME\ncGVlcjETMBEGA1UEAxMKcGVlcjAub3JnMTBZMBMGByqGSM49AgEGCCqGSM49AwEH\nA0IABIKwAk1B/C+j7Qut/IGg3FDvgCFVYCjxkuDyjUWON0JxtLUI9aU5zxb6PTce\nqmbHadKs47W4g4SAlk+eLvPxWZWjTTBLMA4GA1UdDwEB/wQEAwIHgDAMBgNVHRMB\nAf8EAjAAMCsGA1UdIwQkMCKAIBOvXfL41Zmdp1yoZ/YWZfWd8QR5EwaPf8d5kDNl\nCL/PMAoGCCqGSM49BAMCA0gAMEUCIQCIoLNmcZLi1eqoIszPp8LjTWi0nycRm+Ay\nOht76uxQbAIgSkpx6NE6oIOiMi3fSJ7d5NfhMdLIfn789SmdesUJdzQ=\n-----END CERTIFICATE-----\n"
-            },
+            creator: "Org1MSP",
             class: "Update",
             typeString: "ENDORSER_TRANSACTION",
-            block_number: 16,
+            block_number: 15,
             tx_block_number: 3,
             rw_set: [
                 {
@@ -749,40 +749,27 @@ function exampleTransactions() {
                 }
             ],
             chaincode_spec: {
-                type: 1,
-                typeString: "GOLANG",
-                chaincode_id: {
-                    path: "",
-                    name: "simplesupplychain",
-                    version: ""
-                }
+                chaincode: "simplesupplychain",
+                function: [
+                    80,
+                    117,
+                    115,
+                    104,
+                    65,
+                    83,
+                    78
+                ]
             },
-            endorsements: [
-                {
-                    endorser: {
-                        Mspid: "Org1MSP",
-                        IdBytes: "-----BEGIN CERTIFICATE-----\nMIICBTCCAaugAwIBAgIRALIjogqwdNLqTj93y5OujnowCgYIKoZIzj0EAwIwWzEL\nMAkGA1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWExFjAUBgNVBAcTDVNhbiBG\ncmFuY2lzY28xDTALBgNVBAoTBG9yZzExEDAOBgNVBAMTB2NhLm9yZzEwHhcNMjIw\nNjE0MDkyNTAwWhcNMzIwNjExMDkyNTAwWjBeMQswCQYDVQQGEwJVUzETMBEGA1UE\nCBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNU2FuIEZyYW5jaXNjbzENMAsGA1UECxME\ncGVlcjETMBEGA1UEAxMKcGVlcjAub3JnMTBZMBMGByqGSM49AgEGCCqGSM49AwEH\nA0IABIKwAk1B/C+j7Qut/IGg3FDvgCFVYCjxkuDyjUWON0JxtLUI9aU5zxb6PTce\nqmbHadKs47W4g4SAlk+eLvPxWZWjTTBLMA4GA1UdDwEB/wQEAwIHgDAMBgNVHRMB\nAf8EAjAAMCsGA1UdIwQkMCKAIBOvXfL41Zmdp1yoZ/YWZfWd8QR5EwaPf8d5kDNl\nCL/PMAoGCCqGSM49BAMCA0gAMEUCIQCIoLNmcZLi1eqoIszPp8LjTWi0nycRm+Ay\nOht76uxQbAIgSkpx6NE6oIOiMi3fSJ7d5NfhMdLIfn789SmdesUJdzQ=\n-----END CERTIFICATE-----\n"
-                    }
-                },
-                {
-                    endorser: {
-                        Mspid: "Org2MSP",
-                        IdBytes: "-----BEGIN CERTIFICATE-----\nMIICBTCCAaugAwIBAgIRAM+rm/PPu8IoXe6YbcL7RVMwCgYIKoZIzj0EAwIwWzEL\nMAkGA1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWExFjAUBgNVBAcTDVNhbiBG\ncmFuY2lzY28xDTALBgNVBAoTBG9yZzIxEDAOBgNVBAMTB2NhLm9yZzIwHhcNMjIw\nNjE0MDkyNTAwWhcNMzIwNjExMDkyNTAwWjBeMQswCQYDVQQGEwJVUzETMBEGA1UE\nCBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNU2FuIEZyYW5jaXNjbzENMAsGA1UECxME\ncGVlcjETMBEGA1UEAxMKcGVlcjAub3JnMjBZMBMGByqGSM49AgEGCCqGSM49AwEH\nA0IABMFWcOC3f9OAbVQc6ttVJdjoG7Hr5DI+UmeNa7D6QFGrz9hmxW+/Y69cso1Q\n82T5s9hHUTzupBrm2kGBWhJiK5KjTTBLMA4GA1UdDwEB/wQEAwIHgDAMBgNVHRMB\nAf8EAjAAMCsGA1UdIwQkMCKAIC+hKL3nL0qMPzL8RdbSoPfR7Fyx11Hx0DoGw+M5\nRm7UMAoGCCqGSM49BAMCA0gAMEUCIQD7QlwhDtH5Nl+AzH9wLyPWoaeIel4vYWjq\nDREVzMAWvwIgZjMSdiGBtzSwt/45nI/z6l6wCaRH1zWp3k9wQVuZ2WM=\n-----END CERTIFICATE-----\n"
-                    }
-                }
-            ],
+            endorsements: ["Org1MSP", "Org2MSP"],
             status: 12
         },
         {
             tx_number: 4,
             tx_id: "4ccbb77ec80e7e0d29e70214dd1981b37151be0fa55a402a505fea0004328b10",
-            creator: {
-                Mspid: "Org1MSP",
-                IdBytes: "-----BEGIN CERTIFICATE-----\nMIICBTCCAaugAwIBAgIRALIjogqwdNLqTj93y5OujnowCgYIKoZIzj0EAwIwWzEL\nMAkGA1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWExFjAUBgNVBAcTDVNhbiBG\ncmFuY2lzY28xDTALBgNVBAoTBG9yZzExEDAOBgNVBAMTB2NhLm9yZzEwHhcNMjIw\nNjE0MDkyNTAwWhcNMzIwNjExMDkyNTAwWjBeMQswCQYDVQQGEwJVUzETMBEGA1UE\nCBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNU2FuIEZyYW5jaXNjbzENMAsGA1UECxME\ncGVlcjETMBEGA1UEAxMKcGVlcjAub3JnMTBZMBMGByqGSM49AgEGCCqGSM49AwEH\nA0IABIKwAk1B/C+j7Qut/IGg3FDvgCFVYCjxkuDyjUWON0JxtLUI9aU5zxb6PTce\nqmbHadKs47W4g4SAlk+eLvPxWZWjTTBLMA4GA1UdDwEB/wQEAwIHgDAMBgNVHRMB\nAf8EAjAAMCsGA1UdIwQkMCKAIBOvXfL41Zmdp1yoZ/YWZfWd8QR5EwaPf8d5kDNl\nCL/PMAoGCCqGSM49BAMCA0gAMEUCIQCIoLNmcZLi1eqoIszPp8LjTWi0nycRm+Ay\nOht76uxQbAIgSkpx6NE6oIOiMi3fSJ7d5NfhMdLIfn789SmdesUJdzQ=\n-----END CERTIFICATE-----\n"
-            },
+            creator: "Org1MSP",
             class: "Update",
             typeString: "ENDORSER_TRANSACTION",
-            block_number: 16,
+            block_number: 15,
             tx_block_number: 4,
             rw_set: [
                 {
@@ -839,37 +826,24 @@ function exampleTransactions() {
                 }
             ],
             chaincode_spec: {
-                type: 1,
-                typeString: "GOLANG",
-                chaincode_id: {
-                    path: "",
-                    name: "simplesupplychain",
-                    version: ""
-                }
+                chaincode: "simplesupplychain",
+                function: [
+                    80,
+                    117,
+                    115,
+                    104,
+                    65,
+                    83,
+                    78
+                ]
             },
-            endorsements: [
-                {
-                    endorser: {
-                        Mspid: "Org1MSP",
-                        IdBytes: "-----BEGIN CERTIFICATE-----\nMIICBTCCAaugAwIBAgIRALIjogqwdNLqTj93y5OujnowCgYIKoZIzj0EAwIwWzEL\nMAkGA1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWExFjAUBgNVBAcTDVNhbiBG\ncmFuY2lzY28xDTALBgNVBAoTBG9yZzExEDAOBgNVBAMTB2NhLm9yZzEwHhcNMjIw\nNjE0MDkyNTAwWhcNMzIwNjExMDkyNTAwWjBeMQswCQYDVQQGEwJVUzETMBEGA1UE\nCBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNU2FuIEZyYW5jaXNjbzENMAsGA1UECxME\ncGVlcjETMBEGA1UEAxMKcGVlcjAub3JnMTBZMBMGByqGSM49AgEGCCqGSM49AwEH\nA0IABIKwAk1B/C+j7Qut/IGg3FDvgCFVYCjxkuDyjUWON0JxtLUI9aU5zxb6PTce\nqmbHadKs47W4g4SAlk+eLvPxWZWjTTBLMA4GA1UdDwEB/wQEAwIHgDAMBgNVHRMB\nAf8EAjAAMCsGA1UdIwQkMCKAIBOvXfL41Zmdp1yoZ/YWZfWd8QR5EwaPf8d5kDNl\nCL/PMAoGCCqGSM49BAMCA0gAMEUCIQCIoLNmcZLi1eqoIszPp8LjTWi0nycRm+Ay\nOht76uxQbAIgSkpx6NE6oIOiMi3fSJ7d5NfhMdLIfn789SmdesUJdzQ=\n-----END CERTIFICATE-----\n"
-                    }
-                },
-                {
-                    endorser: {
-                        Mspid: "Org2MSP",
-                        IdBytes: "-----BEGIN CERTIFICATE-----\nMIICBTCCAaugAwIBAgIRAM+rm/PPu8IoXe6YbcL7RVMwCgYIKoZIzj0EAwIwWzEL\nMAkGA1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWExFjAUBgNVBAcTDVNhbiBG\ncmFuY2lzY28xDTALBgNVBAoTBG9yZzIxEDAOBgNVBAMTB2NhLm9yZzIwHhcNMjIw\nNjE0MDkyNTAwWhcNMzIwNjExMDkyNTAwWjBeMQswCQYDVQQGEwJVUzETMBEGA1UE\nCBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNU2FuIEZyYW5jaXNjbzENMAsGA1UECxME\ncGVlcjETMBEGA1UEAxMKcGVlcjAub3JnMjBZMBMGByqGSM49AgEGCCqGSM49AwEH\nA0IABMFWcOC3f9OAbVQc6ttVJdjoG7Hr5DI+UmeNa7D6QFGrz9hmxW+/Y69cso1Q\n82T5s9hHUTzupBrm2kGBWhJiK5KjTTBLMA4GA1UdDwEB/wQEAwIHgDAMBgNVHRMB\nAf8EAjAAMCsGA1UdIwQkMCKAIC+hKL3nL0qMPzL8RdbSoPfR7Fyx11Hx0DoGw+M5\nRm7UMAoGCCqGSM49BAMCA0gAMEUCIQD7QlwhDtH5Nl+AzH9wLyPWoaeIel4vYWjq\nDREVzMAWvwIgZjMSdiGBtzSwt/45nI/z6l6wCaRH1zWp3k9wQVuZ2WM=\n-----END CERTIFICATE-----\n"
-                    }
-                }
-            ],
+            endorsements: ["Org1MSP", "Org2MSP"],
             status: 11
         },
         {
             tx_number: 5,
             tx_id: "e3d8738a410d5ab0461d3ff9d58cd966dfff35a5f2f78adfc67bf0c5ee5f2afe",
-            creator: {
-                Mspid: "Org1MSP",
-                IdBytes: "-----BEGIN CERTIFICATE-----\nMIICBTCCAaugAwIBAgIRALIjogqwdNLqTj93y5OujnowCgYIKoZIzj0EAwIwWzEL\nMAkGA1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWExFjAUBgNVBAcTDVNhbiBG\ncmFuY2lzY28xDTALBgNVBAoTBG9yZzExEDAOBgNVBAMTB2NhLm9yZzEwHhcNMjIw\nNjE0MDkyNTAwWhcNMzIwNjExMDkyNTAwWjBeMQswCQYDVQQGEwJVUzETMBEGA1UE\nCBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNU2FuIEZyYW5jaXNjbzENMAsGA1UECxME\ncGVlcjETMBEGA1UEAxMKcGVlcjAub3JnMTBZMBMGByqGSM49AgEGCCqGSM49AwEH\nA0IABIKwAk1B/C+j7Qut/IGg3FDvgCFVYCjxkuDyjUWON0JxtLUI9aU5zxb6PTce\nqmbHadKs47W4g4SAlk+eLvPxWZWjTTBLMA4GA1UdDwEB/wQEAwIHgDAMBgNVHRMB\nAf8EAjAAMCsGA1UdIwQkMCKAIBOvXfL41Zmdp1yoZ/YWZfWd8QR5EwaPf8d5kDNl\nCL/PMAoGCCqGSM49BAMCA0gAMEUCIQCIoLNmcZLi1eqoIszPp8LjTWi0nycRm+Ay\nOht76uxQbAIgSkpx6NE6oIOiMi3fSJ7d5NfhMdLIfn789SmdesUJdzQ=\n-----END CERTIFICATE-----\n"
-            },
+            creator: "Org1MSP",
             class: "Write-only",
             typeString: "ENDORSER_TRANSACTION",
             block_number: 17,
@@ -916,28 +890,18 @@ function exampleTransactions() {
                 }
             ],
             chaincode_spec: {
-                type: 1,
-                typeString: "GOLANG",
-                chaincode_id: {
-                    path: "",
-                    name: "simplesupplychain",
-                    version: ""
-                }
+                chaincode: "simplesupplychain",
+                function: [
+                    80,
+                    117,
+                    115,
+                    104,
+                    65,
+                    83,
+                    78
+                ]
             },
-            endorsements: [
-                {
-                    endorser: {
-                        Mspid: "Org1MSP",
-                        IdBytes: "-----BEGIN CERTIFICATE-----\nMIICBTCCAaugAwIBAgIRALIjogqwdNLqTj93y5OujnowCgYIKoZIzj0EAwIwWzEL\nMAkGA1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWExFjAUBgNVBAcTDVNhbiBG\ncmFuY2lzY28xDTALBgNVBAoTBG9yZzExEDAOBgNVBAMTB2NhLm9yZzEwHhcNMjIw\nNjE0MDkyNTAwWhcNMzIwNjExMDkyNTAwWjBeMQswCQYDVQQGEwJVUzETMBEGA1UE\nCBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNU2FuIEZyYW5jaXNjbzENMAsGA1UECxME\ncGVlcjETMBEGA1UEAxMKcGVlcjAub3JnMTBZMBMGByqGSM49AgEGCCqGSM49AwEH\nA0IABIKwAk1B/C+j7Qut/IGg3FDvgCFVYCjxkuDyjUWON0JxtLUI9aU5zxb6PTce\nqmbHadKs47W4g4SAlk+eLvPxWZWjTTBLMA4GA1UdDwEB/wQEAwIHgDAMBgNVHRMB\nAf8EAjAAMCsGA1UdIwQkMCKAIBOvXfL41Zmdp1yoZ/YWZfWd8QR5EwaPf8d5kDNl\nCL/PMAoGCCqGSM49BAMCA0gAMEUCIQCIoLNmcZLi1eqoIszPp8LjTWi0nycRm+Ay\nOht76uxQbAIgSkpx6NE6oIOiMi3fSJ7d5NfhMdLIfn789SmdesUJdzQ=\n-----END CERTIFICATE-----\n"
-                    }
-                },
-                {
-                    endorser: {
-                        Mspid: "Org2MSP",
-                        IdBytes: "-----BEGIN CERTIFICATE-----\nMIICBTCCAaugAwIBAgIRAM+rm/PPu8IoXe6YbcL7RVMwCgYIKoZIzj0EAwIwWzEL\nMAkGA1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWExFjAUBgNVBAcTDVNhbiBG\ncmFuY2lzY28xDTALBgNVBAoTBG9yZzIxEDAOBgNVBAMTB2NhLm9yZzIwHhcNMjIw\nNjE0MDkyNTAwWhcNMzIwNjExMDkyNTAwWjBeMQswCQYDVQQGEwJVUzETMBEGA1UE\nCBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNU2FuIEZyYW5jaXNjbzENMAsGA1UECxME\ncGVlcjETMBEGA1UEAxMKcGVlcjAub3JnMjBZMBMGByqGSM49AgEGCCqGSM49AwEH\nA0IABMFWcOC3f9OAbVQc6ttVJdjoG7Hr5DI+UmeNa7D6QFGrz9hmxW+/Y69cso1Q\n82T5s9hHUTzupBrm2kGBWhJiK5KjTTBLMA4GA1UdDwEB/wQEAwIHgDAMBgNVHRMB\nAf8EAjAAMCsGA1UdIwQkMCKAIC+hKL3nL0qMPzL8RdbSoPfR7Fyx11Hx0DoGw+M5\nRm7UMAoGCCqGSM49BAMCA0gAMEUCIQD7QlwhDtH5Nl+AzH9wLyPWoaeIel4vYWjq\nDREVzMAWvwIgZjMSdiGBtzSwt/45nI/z6l6wCaRH1zWp3k9wQVuZ2WM=\n-----END CERTIFICATE-----\n"
-                    }
-                }
-            ],
+            endorsements: ["Org1MSP", "Org2MSP"],
             status: 0
         },
     ];

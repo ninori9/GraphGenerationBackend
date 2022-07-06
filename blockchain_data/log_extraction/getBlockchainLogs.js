@@ -96,32 +96,22 @@ async function setClient() {
                             }
 
                             const tx_endorsements = block.data.data[j].payload.data.actions[0].payload.action.endorsements;
-                            let parsed_tx_endorsements = [];
-                            // Parse endorsements to reduce amount of data
-                            for(let s=0; s<tx_endorsements.length; s++) {
-                                parsed_tx_endorsements.push(
-                                    {
-                                        endorser: tx_endorsements[s].endorser
-                                    }
-                                );
-                            }
 
                             parsedTransactions.push(
                                 {
                                     tx_number: current_tx_num,
                                     tx_id: block.data.data[j].payload.header.channel_header.tx_id,
-                                    creator: block.data.data[j].payload.header.signature_header.creator,
+                                    creator: block.data.data[j].payload.header.signature_header.creator.Mspid,
                                     class: tx_class, 
                                     typeString: tx_type_string,
                                     block_number: index,
                                     tx_block_number: j,
                                     rw_set: tx_rw_set,
                                     chaincode_spec: {
-                                        type: tx_chaincode.type,
-                                        typeString: tx_chaincode.typeString,
-                                        chaincode_id: tx_chaincode.chaincode_id,
+                                        chaincode: tx_chaincode.chaincode_id.name,
+                                        function: tx_chaincode.input.args[0].data
                                     },
-                                    endorsements: parsed_tx_endorsements,
+                                    endorsements: tx_endorsements.map(e => e.endorser.Mspid),
                                     status: block.metadata.metadata[2][j],
                                 }
                             );
