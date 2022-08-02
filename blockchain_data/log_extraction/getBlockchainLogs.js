@@ -11,8 +11,9 @@ async function setClient() {
     const startblock = Number(process.argv[2]);
     let endblock = Number(process.argv[3]);
 
+    const local = process.argv[4] === 'true';
 
-	let client =  FabricClient.loadFromConfig('./log_extraction/connectionprofile.yaml');
+	let client =  FabricClient.loadFromConfig(local ? './log_extraction/connectionprofileLocal.yaml' : './log_extraction/connectionprofile.yaml');
 	await client.initCredentialStores().then(async (nothing) => {
         await client.setUserContext({username:'admin', password:'adminpw'}).then(async (admin) => {
             // Get channel of client

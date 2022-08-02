@@ -19,10 +19,10 @@ router.get('/graphGeneration', function(req, res, next) {
     const directory = `b${req.query.startblock}_${req.query.endblock}d${d.getMonth()}_${d.getDay()}_${d.getFullYear()}t${d.getHours()}_${d.getMinutes()}_${d.getSeconds()}_${d.getMilliseconds()}`;
     console.log('Directory name', directory);
 
-    execSync('sudo chmod +x  ./blockchain_data/logExtraction.sh');
+    execSync('sudo chmod +x  ./blockchain_data/logExtractionLocal.sh');
     console.log('Changed permissions of extraction script');
 
-    execSync( `sh ./blockchain_data/logExtraction.sh ${req.query.startblock} ${req.query.endblock} ${directory}`, { stdio: 'ignore' });
+    execSync( `sh ./blockchain_data/logExtractionLocal.sh ${req.query.startblock} ${req.query.endblock} ${directory}`, { stdio: 'ignore' });
     console.log('Executed data extraction shell script');
 
     // Get files in directory (this is needed as specified blocks might not all be part of blockchain)
