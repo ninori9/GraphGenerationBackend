@@ -2,32 +2,41 @@ var express = require('express');
 const fs = require('fs');
 const { exec, execSync } = require("child_process");
 var findCircuits = require("elementary-circuits-directed-graph"); 
+const { getLocalLogs } = require('../blockchain_data/log_extraction/getBlockchainLogsLocal');
 
 var router = express.Router();
 
 /* Endpoint to get parsed data for graph generation from blockchain */
-router.get('/graphGeneration', function(req, res, next) {
+router.get('/graphGeneration', async function(req, res, next) {
 
     // Check whether block parameters are valid
-    if(req.query.startblock === undefined || req.query.endblock === undefined || req.query.startblock < 0 || req.query.endblock - req.query.startblock > 5 || req.query.endblock - req.query.startblock < 0) {
+    if(req.query.startblock === undefined || req.query.endblock === undefined || Number(req.query.startblock) === NaN || Number(req.query.endblock) === NaN || Number(req.query.startblock) < 0 || Number(req.query.startblock) > Number(req.query.endblock)) {
         res.status(406).json({error: 'The provided block parameters are invalid.'});
         return;
     }
+
+    // If client is defiend in CCP (e.g. HyperledgerLab), use different extraction mechanism 
+    const clientDefined = req.query.client !== undefined && req.query.client === '1';
 
     const d = new Date();
     // Directory name (blocks, data, time)
     const directory = `b${req.query.startblock}_${req.query.endblock}d${d.getMonth()}_${d.getDay()}_${d.getFullYear()}t${d.getHours()}_${d.getMinutes()}_${d.getSeconds()}_${d.getMilliseconds()}`;
     console.log('Directory name', directory);
 
-    execSync('sudo chmod +x  ./blockchain_data/logExtractionLocal.sh');
-    console.log('Changed permissions of extraction script');
+    if(clientDefined) {
+        execSync('sudo chmod +x  ./blockchain_data/logExtraction.sh');
+        console.log('Changed permissions of extraction script');
 
-    execSync( `sh ./blockchain_data/logExtractionLocal.sh ${req.query.startblock} ${req.query.endblock} ${directory}`, { stdio: 'ignore' });
-    console.log('Executed data extraction shell script');
+        execSync( `sh ./blockchain_data/logExtraction.sh ${req.query.startblock} ${req.query.endblock} ${directory}`, { stdio: 'ignore' });
+        console.log('Executed data extraction shell script');
+    }
+    else {
+        await getLocalLogs(Number(req.query.startblock), Number(req.query.endblock), directory);
+        exec('rm -r ./blockchain_data/log_extraction/wallet/admin');
+    }
 
     // Get files in directory (this is needed as specified blocks might not all be part of blockchain)
     const directoryContents = fs.readdirSync(`./blockchain_data/log_store/${directory}`);
-
 
     // Accumulate all transactions in one array to enable determining conflict graph and attributes
     let accTransactions = [];
@@ -259,6 +268,12 @@ function createConflictGraph(transactions) {
                             }
                             // Else create new edge
                             else {
+
+                                if(combined_rw_set[j].key === '7003') {
+                                    console.log('7003: Write version of conflicting entry', `${conflicting_entries[c].write_version.block_num} - ${conflicting_entries[c].write_version.tx_num}`);
+                                    console.log('7003: Read version of transaction', `${combined_rw_set[j].read_version.block_num} - ${combined_rw_set[j].read_version.tx_num}`);
+                                }
+
                                 edges.push(
                                     {
                                         edge_number: current_edge_number,
