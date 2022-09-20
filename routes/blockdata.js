@@ -1,8 +1,10 @@
 var express = require('express');
 const fs = require('fs');
+const yaml = require('js-yaml')
 const { exec, execSync } = require("child_process");
 var findCircuits = require("elementary-circuits-directed-graph"); 
-const { getLocalLogs } = require('../blockchain_data/log_extraction/getBlockchainLogsLocal');
+const { getLogsNoClient } = require('../blockchain_data/log_extraction/getBlockchainLogsNoClient');
+const { getLogsClient } = require('../blockchain_data/log_extraction/getBlockchainLogsClient');
 
 var router = express.Router();
 
@@ -15,24 +17,64 @@ router.get('/graphGeneration', async function(req, res, next) {
         return;
     }
 
-    // If client is defiend in CCP (e.g. HyperledgerLab), use different extraction mechanism 
-    const clientDefined = req.query.client !== undefined && req.query.client === '1';
+    let userConfiguration;
+
+    // Read configuration specified by user
+    try {
+        const rawConfigData = fs.readFileSync('./config.yaml', 'utf-8');
+        userConfiguration = yaml.load(rawConfigData);
+    } catch (e) {
+        console.log(e);
+        res.status(406).json({error: 'The specified user configuation is invalid.'});
+        return;
+    }
 
     const d = new Date();
-    // Directory name (blocks, data, time)
+    // Name (blocks, data, time) of directory in which parsed transaction data will be saved
     const directory = `b${req.query.startblock}_${req.query.endblock}d${d.getMonth()}_${d.getDay()}_${d.getFullYear()}t${d.getHours()}_${d.getMinutes()}_${d.getSeconds()}_${d.getMilliseconds()}`;
-    console.log('Directory name', directory);
 
-    if(clientDefined) {
-        execSync('sudo chmod +x  ./blockchain_data/logExtraction.sh');
+    // If HyperledgerLab option true execute script that extracts blockchain data from Fabric network deployed using HyperledgerLab
+    if(userConfiguration.HyperledgerLab !== undefined && userConfiguration.HyperledgerLab === true) {
+        execSync('sudo chmod +x  ./blockchain_data/logExtractionLab.sh');
         console.log('Changed permissions of extraction script');
 
-        execSync( `sh ./blockchain_data/logExtraction.sh ${req.query.startblock} ${req.query.endblock} ${directory}`, { stdio: 'ignore' });
+        execSync( `sh ./blockchain_data/logExtractionLab.sh ${req.query.startblock} ${req.query.endblock} ${directory}`, { stdio: 'ignore' });
         console.log('Executed data extraction shell script');
     }
+    // Else retrieve data from Hyperledger Fabric network depending on user configuration
     else {
-        await getLocalLogs(Number(req.query.startblock), Number(req.query.endblock), directory);
-        exec('rm -r ./blockchain_data/log_extraction/wallet/admin');
+        // Verify user configuration (path to common connection profile has to be defined, shortest possible path: c.yaml)
+        if(userConfiguration.ccp_path === undefined || String(userConfiguration.ccp_path).length <= 5) {
+            res.status(406).json({error: 'The specified user configuation is invalid.'});
+            return;
+        }
+
+        // If no client and crypto store defined connect to Hyperledger Fabric network using the fabric-network and fabric-ca-client modules
+        if(userConfiguration.client_and_cryptoStore !== undefined && userConfiguration.client_and_cryptoStore === false && userConfiguration.certificateAuthority !== undefined && userConfiguration.channel !== undefined) {
+            await getLogsNoClient(Number(req.query.startblock), Number(req.query.endblock), String(userConfiguration.channel), directory, String(userConfiguration.certificateAuthority), String(userConfiguration.ccp_path));
+            exec('rm -r ./blockchain_data/log_extraction/wallet/admin');
+        }
+        // If client and its crypto store defined connect to Hyperledger Fabric network using the fabric-client module
+        else if(userConfiguration.client_and_cryptoStore !== undefined && userConfiguration.client_and_cryptoStore === true) {
+            // Get registered user if in common connection profile
+            let registeredUser;
+            if(userConfiguration.userRegistered !== undefined && userConfiguration.registeredUserId !== undefined && userConfiguration.registeredUserPassword !== undefined) {
+                registeredUser = {
+                    registered: userConfiguration.userRegistered,
+                    userId: userConfiguration.registeredUserId,
+                    userPw: userConfiguration.registeredUserPassword,
+                }
+            }
+            else {
+                res.status(406).json({error: 'The specified user configuation is invalid.'});
+                return;
+            }
+            await getLogsClient(Number(req.query.startblock), Number(req.query.endblock), directory, registeredUser, String(userConfiguration.ccp_path));
+        }
+        else {
+            res.status(406).json({error: 'The specified user configuation is invalid.'});
+            return;
+        }
     }
 
     // Get files in directory (this is needed as specified blocks might not all be part of blockchain)
@@ -63,7 +105,6 @@ router.get('/graphGeneration', async function(req, res, next) {
         return;
     }
 
-
     try {
         // Create conflict graph
         const graphAndAttributes = createConflictGraph(accTransactions);
@@ -76,7 +117,7 @@ router.get('/graphGeneration', async function(req, res, next) {
                 endblock: req.query.endblock,
                 serializable: serializabilityAttributes.serializable,
                 needToAbort: serializabilityAttributes.abortedTx,
-                conflicts: graphAndAttributes.attributes.totalConflicts,
+                conflicts: graphAndAttributes.attributes.interBlockConflicts + graphAndAttributes.attributes.intraBlockConflicts,
                 conflictsLeadingToFailure: graphAndAttributes.attributes.conflictsLeadingToFailure,
                 transactions: accTransactions.length,
                 totalFailures: graphAndAttributes.attributes.totalFailures,
@@ -99,7 +140,7 @@ router.get('/graphGeneration', async function(req, res, next) {
 router.get('/ggTest', function(req, res, next) {
     const tx = exampleTransactions();
     const graphAndAttributes = createConflictGraph(tx);
-    const serializabilityAttributes = serializabilityCheck(graphAndAttributes.attributes.adjacencyList);
+    const serializabilityAttributes = serializabilityCheck(graphAndAttributes.attributes.adjacencyList, graphAndAttributes.edges.length);
 
     const result = {
         attributes: {
@@ -107,7 +148,7 @@ router.get('/ggTest', function(req, res, next) {
             endblock: req.query.endblock,
             serializable: serializabilityAttributes.serializable,
             needToAbort: serializabilityAttributes.abortedTx,
-            conflicts: graphAndAttributes.attributes.totalConflicts,
+            conflicts: graphAndAttributes.attributes.interBlockConflicts ,
             conflictsLeadingToFailure: graphAndAttributes.attributes.conflictsLeadingToFailure,
             transactions: tx.length,
             totalFailures: graphAndAttributes.attributes.totalFailures,
@@ -397,8 +438,22 @@ function createConflictGraph(transactions) {
 }
 
 
-function serializabilityCheck(adjacencyList) {
+function serializabilityCheck(adjacencyList, edgesAmount) {
     console.log('Checking for serializability...');
+
+    // Early abort in the case of potentially very large amounts of cycles due to memory heap error
+    if(edgesAmount >= 10000) {
+        findCircuits(adjacencyList, (circuit) => {
+            return {
+                serializable: false,
+                abortedTx: [false],
+           }
+        })
+    }
+
+    // Max time of function 3 minutes
+    let maxTime = Date.now() + 180000;
+
     let cycles = findCircuits(adjacencyList);
 
     const serializable = ! (cycles !== undefined && cycles.length > 0);
@@ -406,6 +461,14 @@ function serializabilityCheck(adjacencyList) {
     let abortedTx = [];
 
     while(cycles.length > 0) {
+        // Check if max time has elapsed
+        if(Date.now() > maxTime) {
+            console.log('Max time has passed.');
+            return {
+                serializable: false,
+                abortedTx: [false],
+           }
+        }
 
         // Find all transactions involved in cycles
         const txInvolvedInCycles = new Set();

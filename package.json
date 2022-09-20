@@ -17,6 +17,7 @@
     "fabric-ca-client": "^1.4.20",
     "http-errors": "~1.6.3",
     "jade": "~1.11.0",
+    "js-yaml": "~4.1.0",
     "morgan": "~1.9.1"
   }
 }

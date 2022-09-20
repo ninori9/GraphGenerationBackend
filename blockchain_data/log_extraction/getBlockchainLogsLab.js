@@ -19,7 +19,7 @@ async function setClient() {
 
             // Get blockchain height and compare with startblock and endblock
             let blockchaininfo = await channel.queryInfo();
-            let blockchainheight = blockchaininfo.height;
+            let blockchainheight = blockchaininfo.height.toNumber();
             
             if(blockchainheight < startblock) {
                 // If startblock smaller than endblock, return without retrieving data
@@ -27,7 +27,7 @@ async function setClient() {
             }
             else if(blockchainheight < endblock) {
                 // Endblock maximum is limited by blockchain height
-                endblock = blockchainheight;
+                endblock = blockchainheight - 1;
             }
 
             let current_tx_num = 0;
@@ -108,7 +108,7 @@ async function setClient() {
                                     rw_set: tx_rw_set,
                                     chaincode_spec: {
                                         chaincode: tx_chaincode.chaincode_id.name,
-                                        function: tx_chaincode.input.args[0].data
+                                        function: tx_chaincode.input.args[0].toString('utf8')
                                     },
                                     endorsements: tx_endorsements.map(e => e.endorser.Mspid),
                                     status: block.metadata.metadata[2][j],

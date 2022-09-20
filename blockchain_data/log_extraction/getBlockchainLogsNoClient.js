@@ -9,18 +9,34 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 
-async function getLocalLogs(startblock, endblock, directoryName) {
+async function getLogsNoClient(startblock, endblock, channelName, directoryName, certificateAuthority, ccp_path) {
     try {
-        // ENTER --> relative path to the connection profile
         var jsonPath = path.join(__dirname, '..', '..', '..', 'fabric-samples', 'test-network', 'organizations', 'peerOrganizations', 'org1.example.com', 'connection-org1.json');
-        const ccpJSON = fs.readFileSync(jsonPath, 'utf8');
-        const ccp = JSON.parse(ccpJSON);
+        console.log(jsonPath);
+
+        // If ccp file does not exist can't connect to network
+        if(! fs.existsSync(ccp_path)) {
+            return false;
+        }
+
+        let ccp;
+        // CCP can be in .yaml or .json format
+        if(ccp_path.substring(ccp_path.length - 4, ccp_path.length) === 'yaml') {
+            const ccpYAML = fs.readFileSync(ccp_path, 'utf-8');
+            ccp = yaml.load(ccpYAML);
+        }
+        else if(ccp_path.substring(ccp_path.length - 4, ccp_path.length) === 'json') {
+            const ccpJSON = fs.readFileSync(ccp_path, 'utf8');
+            ccp = JSON.parse(ccpJSON);
+        }
+        else {
+            return false;
+        }
 
         const gateway = new FabricNetwork.Gateway();
 
-        // Create a new CA client for interacting with the CA.
-        // ENTER --> name of certificate authority
-        const caInfo = ccp.certificateAuthorities['ca.org1.example.com'];
+        // Create a new CA client for interacting with the CA
+        const caInfo = ccp.certificateAuthorities[certificateAuthority];
         const caTLSCACerts = caInfo.tlsCACerts.pem;
         const ca = new FabricCAClient(caInfo.url, { trustedRoots: caTLSCACerts, verify: false }, caInfo.caName);
 
@@ -40,8 +56,7 @@ async function getLocalLogs(startblock, endblock, directoryName) {
         // Using asLocalhost as network deployed locally (may be changed if network distributed)
         await gateway.connect(ccp, { wallet: wallet, identity: 'admin', discovery: { enabled: true, asLocalhost: true } });
 
-        // ENTER --> Name of channel
-        const network = await gateway.getNetwork('mychannel');
+        const network = await gateway.getNetwork(channelName);
 
         const channel = network.getChannel();
 
@@ -183,4 +198,4 @@ async function getLocalLogs(startblock, endblock, directoryName) {
     }
 }
 
-module.exports = { getLocalLogs };
+module.exports = { getLogsNoClient };
