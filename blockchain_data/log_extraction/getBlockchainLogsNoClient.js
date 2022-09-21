@@ -1,6 +1,7 @@
 'use strict';
 
 const fs = require('fs');
+const yaml = require('js-yaml');
 
 const FabricNetwork = require('fabric-network');
 const FabricCAClient = require('fabric-ca-client');
@@ -22,7 +23,8 @@ async function getLogsNoClient(startblock, endblock, channelName, directoryName,
         let ccp;
         // CCP can be in .yaml or .json format
         if(ccp_path.substring(ccp_path.length - 4, ccp_path.length) === 'yaml') {
-            const ccpYAML = fs.readFileSync(ccp_path, 'utf-8');
+	    console.log(`yaml at path ${ccp_path}`);
+            const ccpYAML = fs.readFileSync(ccp_path, 'utf8');
             ccp = yaml.load(ccpYAML);
         }
         else if(ccp_path.substring(ccp_path.length - 4, ccp_path.length) === 'json') {

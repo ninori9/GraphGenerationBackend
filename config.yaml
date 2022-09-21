@@ -1,22 +1,24 @@
 # ADAPT THE CONFIGURATION BASED ON THE FABRIC NETWORK UNDER TEST
 
-# Absolute path to common connection profile (.yaml or .json format)
-ccp_path: "../"
-
-# Channel name
-channel: "mychannel"
+# Absolute path to common connection profile (.yaml or .json format), not used if connecting to HyperledgerLab
+ccp_path: "/home/ubuntu/fabric-samples/test-network/organizations/peerOrganizations/org1.example.com/connection-org1.yaml"
 
 # True if client and its cryptoStore defined in ccp
 client_and_cryptoStore: false
 
-# Enter the information if a user is already registered (see registrar section of ccp)
+# INFORMATION REQUIRED IF CLIENT DEFINED
+# True if a user is already registered (see registrar section of ccp)
 userRegistered: false
 # Information of registered user (if no user registered, this information is not used)
 registeredUserId: "admin"
 registeredUserPassword: "adminpw"
 
-# Enter name of certificate authority in ccp that will be used to register user if no user registered
+# INFORMATION REQUIRED IF NO CLIENT DEFINED
+# Name of certificate authority in ccp that will be used to register user if no user registered
 certificateAuthority: "ca.org1.example.com"
+# Channel name
+channel: "mychannel"
 
+# INFORMATION RELATED TO HYPERLEDGER LAB
 # True if network under test was deployed using HyperledgerLab
 HyperledgerLab: false

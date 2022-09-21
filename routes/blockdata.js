@@ -77,6 +77,12 @@ router.get('/graphGeneration', async function(req, res, next) {
         }
     }
 
+    // An error occured if the directory was not created during the data retrieval process
+    if(! fs.existsSync(`./blockchain_data/log_store/${directory}`)) {
+        res.status(404).json({error: 'Could not retrieve any transactions with the provided configuration and parameters.'});
+        return;
+    }
+
     // Get files in directory (this is needed as specified blocks might not all be part of blockchain)
     const directoryContents = fs.readdirSync(`./blockchain_data/log_store/${directory}`);
 
@@ -91,17 +97,17 @@ router.get('/graphGeneration', async function(req, res, next) {
 
             const rawBlockData = fs.readFileSync(`./blockchain_data/log_store/${directory}/${directoryContents[i]}`);
             const parsedBlock = JSON.parse(rawBlockData);
-    
+
             accTransactions = accTransactions.concat(parsedBlock.transactions);
         }
     }
 
-    // Delete directory and contained json files 
+    // Delete directory and contained json files
     exec(`rm -r ./blockchain_data/log_store/${directory}`);
 
     // If the directory did not contain any files, or no transaction could be retrieved, send error
     if(directoryContents === undefined || directoryContents.length === 0 || accTransactions.length === 0) {
-        res.status(404).json({error: 'Could not retrieve any transactions with the provided parameters. You may want to review the specied connection profile, start block, or end block.'});
+        res.status(404).json({error: 'Could not retrieve any transactions with the provided configuration and parameters.'});
         return;
     }
 
@@ -109,7 +115,7 @@ router.get('/graphGeneration', async function(req, res, next) {
         // Create conflict graph
         const graphAndAttributes = createConflictGraph(accTransactions);
         // Check serializability
-        const serializabilityAttributes = serializabilityCheck(graphAndAttributes.attributes.adjacencyList);
+        const serializabilityAttributes = serializabilityCheck(graphAndAttributes.attributes.adjacencyList, graphAndAttributes.edges.length);
 
         const result = {
             attributes: {
@@ -117,8 +123,8 @@ router.get('/graphGeneration', async function(req, res, next) {
                 endblock: req.query.endblock,
                 serializable: serializabilityAttributes.serializable,
                 needToAbort: serializabilityAttributes.abortedTx,
-                conflicts: graphAndAttributes.attributes.interBlockConflicts + graphAndAttributes.attributes.intraBlockConflicts,
-                conflictsLeadingToFailure: graphAndAttributes.attributes.conflictsLeadingToFailure,
+                conflicts: graphAndAttributes.attributes.totalConflicts,
+                conflictsLeadingToFailure: graphAndAttributes.attributes.interBlockConflicts + graphAndAttributes.attributes.intraBlockConflicts,
                 transactions: accTransactions.length,
                 totalFailures: graphAndAttributes.attributes.totalFailures,
                 failureTypes: graphAndAttributes.attributes.failureAmounts,
@@ -310,11 +316,6 @@ function createConflictGraph(transactions) {
                             // Else create new edge
                             else {
 
-                                if(combined_rw_set[j].key === '7003') {
-                                    console.log('7003: Write version of conflicting entry', `${conflicting_entries[c].write_version.block_num} - ${conflicting_entries[c].write_version.tx_num}`);
-                                    console.log('7003: Read version of transaction', `${combined_rw_set[j].read_version.block_num} - ${combined_rw_set[j].read_version.tx_num}`);
-                                }
-
                                 edges.push(
                                     {
                                         edge_number: current_edge_number,
@@ -418,8 +419,8 @@ function createConflictGraph(transactions) {
         parsedFailureAmounts.push(failureStatusAmount);
     }
 
-    console.log('Interblock', interBlockConflicts);
-    console.log('Intrablock', intraBlockConflicts);
+    //console.log('Interblock', interBlockConflicts);
+    //console.log('Intrablock', intraBlockConflicts);
 
     console.log('Created conflict graph!');
 
@@ -440,15 +441,22 @@ function createConflictGraph(transactions) {
 
 function serializabilityCheck(adjacencyList, edgesAmount) {
     console.log('Checking for serializability...');
+    console.log('Number of edges', edgesAmount);
 
     // Early abort in the case of potentially very large amounts of cycles due to memory heap error
-    if(edgesAmount >= 10000) {
-        findCircuits(adjacencyList, (circuit) => {
-            return {
+    if(edgesAmount >= 1500) {
+        try {
+	    findCircuits(adjacencyList, (circuit) => {
+                throw "Not serializable.";
+	    });
+	}
+	catch(e) {
+	    console.log(e);
+	    return {
                 serializable: false,
                 abortedTx: [false],
-           }
-        })
+           };
+	}
     }
 
     // Max time of function 3 minutes
