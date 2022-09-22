@@ -444,7 +444,7 @@ function serializabilityCheck(adjacencyList, transactionsAmount, edgesAmount) {
     console.log('Number of edges', edgesAmount);
 
     // Early abort in the case of potentially very large amounts of cycles due to memory heap error
-    if(edgesAmount >= 1500) {
+    if(edgesAmount >= 500) {
         try {
 	        findCircuits(adjacencyList, (circuit) => {
                 throw "Not serializable.";
@@ -495,7 +495,6 @@ function serializabilityCheck(adjacencyList, transactionsAmount, edgesAmount) {
     console.log('Cycles added to data structure');
 
     while(cycles.length > 0) {
-	    console.log(cycles.length);
 
         // Check if max time has elapsed
         if(Date.now() > maxTime) {
@@ -521,20 +520,26 @@ function serializabilityCheck(adjacencyList, transactionsAmount, edgesAmount) {
         abortedTx.push(maxTx);
 
         for(let i=0; i<cycles.length; i++) {
-            if(i % 500000 === 0) {
-                console.log('Current index', i);
-            }
+	    let maxTxIncluded = false;
+	    for(let j=0; j<cycles[i].length-1; j++) {
+		if(cycles[i][j] === maxTx) {
+		    maxTxIncluded = true;
+		    j=cycles[i].length-1;
+		}
+	    }
 
             // If the cycle includes the transaction involved in the most cycles
-            if(cycles[i].includes(maxTx)) {
+            if(maxTxIncluded) {
                 // Each transaction involved in the cycle is now involved in one less cycle
                 for(let j=0; j<cycles[i].length - 1; j++) {
                     transactionsAmountOfCycles[cycles[i][j]]--;
                 }
                 // Cycle is removed
-                cycles.splice(i, 1);
+                // cycles.splice(i, 1);
             }
         }
+
+	cycles = cycles.filter(cycle => (! cycle.includes(maxTx)));
     }
 
     console.log('Done checking for serializability.');
