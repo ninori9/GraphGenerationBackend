@@ -486,10 +486,6 @@ function serializabilityCheck(adjacencyList, transactionsAmount, edgesAmount) {
 
     // For each transaction determine how many cycles it is involved in
     for(let i=0; i<cycles.length; i++) {
-        if(i % 5000 === 0) {
-            console.log('current index', i);
-            console.log(transactionsAmountOfCycles[54]);
-        }
         // Add a cycle to each distinct tx in cycle
         for(let j=0; j<cycles[i].length - 1; j++) {
             transactionsAmountOfCycles[cycles[i][j]]++;
@@ -513,7 +509,7 @@ function serializabilityCheck(adjacencyList, transactionsAmount, edgesAmount) {
         // Get transaction involved in most cycles (should be aborted)
         let maxCycles = 0; let maxTx = -1;
         for(let i=0; i<transactionsAmountOfCycles.length; i++) {
-            if(transactionsAmountOfCycles[i] > maximum) {
+            if(transactionsAmountOfCycles[i] > maxCycles) {
                 maxCycles = transactionsAmountOfCycles[i];
                 maxTx = i;
             }
@@ -521,15 +517,17 @@ function serializabilityCheck(adjacencyList, transactionsAmount, edgesAmount) {
 
         abortedTx.push(maxTx);
 
-        cycles.forEach((cycle, index, array)=> {
+        for(let i=0; i<cycles.length; i++) {
             // If the cycle includes the transaction involved in the most cycles
-            if(cycle.includes(maxTx)) {
+            if(cycles[i].includes(maxTx)) {
                 // Each transaction involved in the cycle is now involved in one less cycle
-                cycle.forEach((tx) => { transactionsAmountOfCycles[tx] = transactionsAmountOfCycles[tx] - 1; });
+                for(let j=0; j<cycles[i].length - 1; j++) {
+                    transactionsAmountOfCycles[cycles[i][j]]--;
+                }
                 // Cycle is removed
-                array.splice(index, 1);
+                cycles.splice(i, 1);
             }
-        });
+        }
     }
 
     console.log('Done checking for serializability.');
