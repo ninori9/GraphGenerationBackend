@@ -482,16 +482,23 @@ function serializabilityCheck(adjacencyList, transactionsAmount, edgesAmount) {
     for(let i=0; i<transactionsAmount; i++) {
         transactionsAmountOfCycles[i] = 0;
     }
+    console.log('Initialized tx cycle data strucutre');
 
     // For each transaction determine how many cycles it is involved in
-    cycles.forEach((cycle) => {
+    cycles.forEach((cycle, index) => {
+	console.log('Cycle length', cycle.length);
         // Add a cycle to each distinct tx in cycle
         for(let j=0; cycle.length - 1; j++) {
-            transactionsAmountOfCycles[cycle[j]] = transactionsAmountOfCycles[cycle[j]] + 1;
+	    console.log('Adding to tx');
+            transactionsAmountOfCycles[cycle[j]]++;
         }
     });
 
+    console.log('Cycles added to data structure');
+
     while(cycles.length > 0) {
+	console.log(cycles.length);
+
         // Check if max time has elapsed
         if(Date.now() > maxTime) {
             console.log('Max time has passed.');
