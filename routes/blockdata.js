@@ -485,14 +485,12 @@ function serializabilityCheck(adjacencyList, transactionsAmount, edgesAmount) {
     console.log('Initialized tx cycle data strucutre');
 
     // For each transaction determine how many cycles it is involved in
-    cycles.forEach((cycle, index) => {
-	console.log('Cycle length', cycle.length);
+    for(let i=0; i<cycles.length; i++) {
         // Add a cycle to each distinct tx in cycle
-        for(let j=0; cycle.length - 1; j++) {
-	    console.log('Adding to tx');
-            transactionsAmountOfCycles[cycle[j]]++;
+        for(let j=0; cycles[i].length - 1; j++) {
+            transactionsAmountOfCycles[cycles[i][j]]++;
         }
-    });
+    }
 
     console.log('Cycles added to data structure');
 
