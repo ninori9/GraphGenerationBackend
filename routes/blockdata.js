@@ -486,14 +486,12 @@ function serializabilityCheck(adjacencyList, transactionsAmount, edgesAmount) {
 
     // For each transaction determine how many cycles it is involved in
     for(let i=0; i<cycles.length; i++) {
-        if(i % 500 === 0) {
+        if(i % 5000 === 0) {
             console.log('current index', i);
+            console.log(transactionsAmountOfCycles[54]);
         }
         // Add a cycle to each distinct tx in cycle
-        for(let j=0; cycles[i].length - 1; j++) {
-            console.log('current cycle', cycles[i]);
-            console.log('j', j);
-            console.log(transactionsAmountOfCycles[cycles[i][j]]);
+        for(let j=0; j<cycles[i].length - 1; j++) {
             transactionsAmountOfCycles[cycles[i][j]]++;
         }
     }
