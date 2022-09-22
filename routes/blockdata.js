@@ -515,9 +515,16 @@ function serializabilityCheck(adjacencyList, transactionsAmount, edgesAmount) {
             }
         }
 
+        console.log('Max tx', maxTx);
+        console.log('involved in cycles:', maxCycles);
+
         abortedTx.push(maxTx);
 
         for(let i=0; i<cycles.length; i++) {
+            if(i % 500000 === 0) {
+                console.log('Current index', i);
+            }
+
             // If the cycle includes the transaction involved in the most cycles
             if(cycles[i].includes(maxTx)) {
                 // Each transaction involved in the cycle is now involved in one less cycle
