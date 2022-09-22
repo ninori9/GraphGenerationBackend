@@ -115,7 +115,7 @@ router.get('/graphGeneration', async function(req, res, next) {
         // Create conflict graph
         const graphAndAttributes = createConflictGraph(accTransactions);
         // Check serializability
-        const serializabilityAttributes = serializabilityCheck(graphAndAttributes.attributes.adjacencyList, graphAndAttributes.edges.length);
+        const serializabilityAttributes = serializabilityCheck(graphAndAttributes.attributes.adjacencyList, accTransactions.length, graphAndAttributes.edges.length);
 
         const result = {
             attributes: {
@@ -439,34 +439,57 @@ function createConflictGraph(transactions) {
 }
 
 
-function serializabilityCheck(adjacencyList, edgesAmount) {
+function serializabilityCheck(adjacencyList, transactionsAmount, edgesAmount) {
     console.log('Checking for serializability...');
     console.log('Number of edges', edgesAmount);
 
     // Early abort in the case of potentially very large amounts of cycles due to memory heap error
     if(edgesAmount >= 1500) {
         try {
-	    findCircuits(adjacencyList, (circuit) => {
+	        findCircuits(adjacencyList, (circuit) => {
                 throw "Not serializable.";
-	    });
-	}
-	catch(e) {
-	    console.log(e);
-	    return {
+	        });
+	    }
+	    catch(e) {
+	        console.log(e);
+	        return {
                 serializable: false,
                 abortedTx: [false],
-           };
-	}
+            };
+	    }
     }
 
-    // Max time of function 3 minutes
-    let maxTime = Date.now() + 180000;
+    // Max time of function 3.5 minutes
+    let maxTime = Date.now() + 210000;
 
     let cycles = findCircuits(adjacencyList);
+    console.log(`Found ${cycles.length} cycles using Johnson's Algorithm.`);
 
     const serializable = ! (cycles !== undefined && cycles.length > 0);
-    
+
+    // If serializable, no transactions need to be aborted
+    if(serializable === true) {
+        return {
+            serializable: false,
+            abortedTx: [],
+        };
+    }
+
     let abortedTx = [];
+
+    // Initialize array of transactions and amount of cycles they are involved in
+    let transactionsAmountOfCycles = [];
+    for(let i=0; i<transactionsAmount; i++) {
+        transactionsAmountOfCycles[i] = 0;
+    }
+
+    // For each transaction determine how many cycles it is involved in
+    cycles.forEach((cycle) => {
+        // Add a cycle to each distinct tx in cycle
+        for(let j=0; cycle.length - 1; j++) {
+            transactionsAmountOfCycles[cycle[j]] = transactionsAmountOfCycles[cycle[j]] + 1;
+        }
+    });
 
     while(cycles.length > 0) {
         // Check if max time has elapsed
@@ -478,39 +501,26 @@ function serializabilityCheck(adjacencyList, edgesAmount) {
            }
         }
 
-        // Find all transactions involved in cycles
-        const txInvolvedInCycles = new Set();
-        
-        for(let i=0; i<cycles.length; i++) {
-            for(let j=0; j<cycles[i].length; j++) {
-                txInvolvedInCycles.add(cycles[i][j]);
+        // Get transaction involved in most cycles (should be aborted)
+        let maxCycles = 0; let maxTx = -1;
+        for(let i=0; i<transactionsAmountOfCycles.length; i++) {
+            if(transactionsAmountOfCycles[i] > maximum) {
+                maxCycles = transactionsAmountOfCycles[i];
+                maxTx = i;
             }
         }
 
-        // Find transaction involved in the most cycles (should be aborted)
-        let maximum = 0; let txToBeAborted = -1;
+        abortedTx.push(maxTx);
 
-        txInvolvedInCycles.forEach(tx => {
-            let cyclesOfTx = 0;
-
-            // Count cycles tx is involved in
-            for(let i=0; i<cycles.length; i++) {
-                if(cycles[i].includes(tx)) {
-                    cyclesOfTx++;
-                }
-            }
-
-            // In the case of a tie, the transaction with the highest tx_number should be aborted (ensure deterministic algorithm)
-            if(cyclesOfTx > maximum || cyclesOfTx === maximum && tx > txToBeAborted) {
-                maximum = cyclesOfTx;
-                txToBeAborted = tx;
+        cycles.forEach((cycle, index, array)=> {
+            // If the cycle includes the transaction involved in the most cycles
+            if(cycle.includes(maxTx)) {
+                // Each transaction involved in the cycle is now involved in one less cycle
+                cycle.forEach((tx) => { transactionsAmountOfCycles[tx] = transactionsAmountOfCycles[tx] - 1; });
+                // Cycle is removed
+                array.splice(index, 1);
             }
         });
-
-        abortedTx.push(txToBeAborted);
-
-        // Exclude cycles that are broken as tx aborted
-        cycles = cycles.filter(cycle => (! cycle.includes(txToBeAborted)) );
     }
 
     console.log('Done checking for serializability.');
