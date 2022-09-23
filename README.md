@@ -16,7 +16,7 @@ The app provides an endpoint ([http://localhost:3007/graphGeneration?startblock=
 
 The [config.yaml](https://github.com/ninori9/GraphGenerationBackend/blob/master/config.yaml) file should be edited by the user before using the application. The variables need to be adapted based on the Hyperledger Fabric network under test. 
 
-If the application is used to generate graphs from a network deployed using HyperledgerLab, the variable <strong>HyperledgerLab</strong> should be set to true.
+If the application is used to generate graphs from a network deployed using HyperledgerLab, the variable <strong>HyperledgerLab</strong> should be set to true. Make sure the [connection profile](https://github.com/ninori9/GraphGenerationBackend/blob/master/blockchain_data/log_extraction/connectionprofile.yaml) matches the HyperledgerLab network.
 
 Otherwise, the path to the common connection profile of the network, which may be a .json or .yaml file, needs to be specified (<strong>ccp_path</strong> variable). Depending on whether a client and its crypto store is defined in the common connection profile (see <strong>client_and_cryptoStore</strong> variable), different methods to retrieve the transaction data are used. By default, a connection is established without using a predefined client, hence the <strong>channel</strong> and <strong>certificateAuthority</strong> variables need to be provided.
 
@@ -48,7 +48,7 @@ All cycles of the graph are detected using [Johnson's algorithm](http://www.cs.t
 
 ## How to use
 
-### Modify the [connection profile](https://github.com/ninori9/GraphGenerationBackend/blob/master/blockchain_data/log_extraction/connectionprofile.yaml) to match the Fabric network.
+### Modify the [config.yaml](https://github.com/ninori9/GraphGenerationBackend/blob/master/config.yaml) file based on the Fabric network.
 
 If you start the frontend for the first time, run the following command (may take several minutes):
 
