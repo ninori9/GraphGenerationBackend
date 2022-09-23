@@ -18,7 +18,7 @@ The [config.yaml](https://github.com/ninori9/GraphGenerationBackend/blob/master/
 
 If the application is used to generate graphs from a network deployed using HyperledgerLab, the variable <strong>HyperledgerLab</strong> should be set to true.
 
-Otherwise, the path to the common connection profile of the network, which may be a .json or .yaml file, needs to be specified. Depending on whether a client and its crypto store is defined in the common connection profile (see <strong>client_and_cryptoStore</strong> variable), different methods to retrieve the transaction data are used. By default, a connection is established without using a predefined client, hence the <strong>channel</strong> and the <strong>certificateAuthority</strong> need to be provided.
+Otherwise, the path to the common connection profile of the network, which may be a .json or .yaml file, needs to be specified (<strong>ccp_path</strong> variable). Depending on whether a client and its crypto store is defined in the common connection profile (see <strong>client_and_cryptoStore</strong> variable), different methods to retrieve the transaction data are used. By default, a connection is established without using a predefined client, hence the <strong>channel</strong> and <strong>certificateAuthority</strong> variables need to be provided.
 
 ## Data extraction
 
