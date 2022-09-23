@@ -155,7 +155,7 @@ router.get('/graphGenerationTest', function(req, res, next) {
             endblock: req.query.endblock,
             serializable: serializabilityAttributes.serializable,
             needToAbort: serializabilityAttributes.abortedTx,
-            conflicts: graphAndAttributes.attributes.interBlockConflicts ,
+            conflicts: graphAndAttributes.attributes.totalConflicts ,
             conflictsLeadingToFailure: graphAndAttributes.attributes.conflictsLeadingToFailure,
             transactions: tx.length,
             totalFailures: graphAndAttributes.attributes.totalFailures,

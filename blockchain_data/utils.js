@@ -64,18 +64,10 @@ function exampleTransactions() {
             ],
             chaincode_spec: {
                 chaincode: "simplesupplychain",
-                function: [
-                    80,
-                    117,
-                    115,
-                    104,
-                    65,
-                    83,
-                    78
-                ].toString('utf8')
+                function: "PushASN"
             },
             endorsements: ["Org1MSP", "Org2MSP"],
-            status: 11
+            status: 0
         },
         {
             tx_number: 1,
@@ -154,15 +146,7 @@ function exampleTransactions() {
             ],
             chaincode_spec: {
                 chaincode: "simplesupplychain",
-                function: [
-                    80,
-                    117,
-                    115,
-                    104,
-                    65,
-                    83,
-                    78
-                ].toString('utf8')
+                function: "Ship"
             },
             endorsements: ["Org1MSP", "Org2MSP"],
             status: 0
@@ -233,15 +217,7 @@ function exampleTransactions() {
             ],
             chaincode_spec: {
                 chaincode: "simplesupplychain",
-                function: [
-                    80,
-                    117,
-                    115,
-                    104,
-                    65,
-                    83,
-                    78
-                ].toString('utf8')
+                function: "PushASN"
             },
             endorsements: ["Org1MSP", "Org2MSP"],
             status: 0
@@ -312,15 +288,7 @@ function exampleTransactions() {
             ],
             chaincode_spec: {
                 chaincode: "simplesupplychain",
-                function: [
-                    80,
-                    117,
-                    115,
-                    104,
-                    65,
-                    83,
-                    78
-                ].toString('utf8')
+                function: "Unload"
             },
             endorsements: ["Org1MSP", "Org2MSP"],
             status: 12
@@ -389,15 +357,7 @@ function exampleTransactions() {
             ],
             chaincode_spec: {
                 chaincode: "simplesupplychain",
-                function: [
-                    80,
-                    117,
-                    115,
-                    104,
-                    65,
-                    83,
-                    78
-                ].toString('utf8')
+                function: "PushASN"
             },
             endorsements: ["Org1MSP", "Org2MSP"],
             status: 11
@@ -453,15 +413,7 @@ function exampleTransactions() {
             ],
             chaincode_spec: {
                 chaincode: "simplesupplychain",
-                function: [
-                    80,
-                    117,
-                    115,
-                    104,
-                    65,
-                    83,
-                    78
-                ].toString('utf8')
+                function: "PushASN"
             },
             endorsements: ["Org1MSP", "Org2MSP"],
             status: 0
