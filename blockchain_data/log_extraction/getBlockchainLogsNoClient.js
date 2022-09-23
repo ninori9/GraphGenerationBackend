@@ -12,9 +12,6 @@ const { execSync } = require('child_process');
 
 async function getLogsNoClient(startblock, endblock, channelName, directoryName, certificateAuthority, ccp_path) {
     try {
-        var jsonPath = path.join(__dirname, '..', '..', '..', 'fabric-samples', 'test-network', 'organizations', 'peerOrganizations', 'org1.example.com', 'connection-org1.json');
-        console.log(jsonPath);
-
         // If ccp file does not exist can't connect to network
         if(! fs.existsSync(ccp_path)) {
             return false;
@@ -23,7 +20,6 @@ async function getLogsNoClient(startblock, endblock, channelName, directoryName,
         let ccp;
         // CCP can be in .yaml or .json format
         if(ccp_path.substring(ccp_path.length - 4, ccp_path.length) === 'yaml') {
-	    console.log(`yaml at path ${ccp_path}`);
             const ccpYAML = fs.readFileSync(ccp_path, 'utf8');
             ccp = yaml.load(ccpYAML);
         }

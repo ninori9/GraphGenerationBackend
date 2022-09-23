@@ -8,9 +8,10 @@ const { execSync } = require('child_process');
 
 
 async function setClient(startblock, endblock, directoryName, registeredUser, ccp_path) {
-
-	let client =  FabricClient.loadFromConfig(ccp_path);
+    // Load client config from common connection profile
+	let client = FabricClient.loadFromConfig(ccp_path);
 	await client.initCredentialStores().then(async (nothing) => {
+        // If user already registered setUserContext with predefined ID and password
         if(registeredUser.registered === true) {
             let channel;
             await client.setUserContext({username: registeredUser.userId, password: registeredUser.userPw}).then(async (admin) => {
@@ -23,6 +24,7 @@ async function setClient(startblock, endblock, directoryName, registeredUser, cc
             });
             return channel;
         }
+        // Else register a new user
         else {
             let channel;
             var fabric_ca_client = client.getCertificateAuthority();
@@ -54,8 +56,7 @@ async function getBlockchainData(client, startblock, endblock, directoryName) {
     let blockchainheight = blockchaininfo.height.toNumber();
 
     console.log('Blockchain height', blockchainheight);
-    console.log('Channel chaincodes', await channel.queryInstantiatedChaincodes());
-
+    
     if(blockchainheight <= startblock) {
         // If startblock smaller than endblock, return without retrieving data
         return;
