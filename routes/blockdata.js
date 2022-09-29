@@ -468,7 +468,7 @@ function serializabilityCheck(adjacencyList, transactionsAmount, edgesAmount) {
     // If serializable, no transactions need to be aborted
     if(serializable === true) {
         return {
-            serializable: false,
+            serializable: true,
             abortedTx: [],
         };
     }
