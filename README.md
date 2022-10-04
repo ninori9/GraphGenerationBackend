@@ -73,6 +73,7 @@ Open [http://localhost:3007](http://localhost:3007) to access the backend endpoi
 
 Keep in mind that the [frontend](https://github.com/ninori9/GraphGenerationFrontend) should be run simultaneously. If it is, [http://localhost:3006](http://localhost:3006) can be visited to view the user interface and interact with the application.
 
+-----
   
 ### `npm run build`
 
