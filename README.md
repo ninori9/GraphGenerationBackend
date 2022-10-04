@@ -54,10 +54,13 @@ If the application is used to generate graphs from a network deployed using [Hyp
 
 Otherwise, the path to the common connection profile of the network, which may be a .json or .yaml file, needs to be specified (<strong>ccp_path</strong> variable). Depending on whether a client and its crypto store are defined in the common connection profile (<strong>client_and_cryptoStore</strong> variable), different methods to retrieve the transaction data are used. By default, a connection is established without using a predefined client, hence the <strong>channel</strong> and <strong>certificateAuthority</strong> variables need to be provided.
   
-
+### Before running for the first time
+  
 If you start the backend for the first time, run the following command (may take several minutes):
 
 ### `npm install`
+
+### Start application
 
 To run the application, execute the following command in the project directory:
 
@@ -70,7 +73,7 @@ Open [http://localhost:3007](http://localhost:3007) to access the backend endpoi
 
 Keep in mind that the [frontend](https://github.com/ninori9/GraphGenerationFrontend) should be run simultaneously. If it is, [http://localhost:3006](http://localhost:3006) can be visited to view the user interface and interact with the application.
 
-
+  
 ### `npm run build`
 
 Builds the app for production to the `build` folder.\
