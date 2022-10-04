@@ -36,7 +36,7 @@ Additionally, attributes of the transaction conflict graph, such as the number o
 
 ## Serializability Check
 
-All cycles of the graph are detected using [Johnson's algorithm](http://www.cs.tufts.edu/comp/150GA/homeworks/hw1/Johnson%2075.PDF). If there are no cycles, the set of transactions is serializable. Otherwise, the transactions involved in the most cycles are iteratively removed (and added to the array of transactions that would need to be aborted to ensure serializability) until there are no cycles left.
+All cycles of the graph are detected using [Johnson's algorithm](http://www.cs.tufts.edu/comp/150GA/homeworks/hw1/Johnson%2075.PDF). If there are no cycles, the set of transactions is serializable. Otherwise, the transactions involved in the most cycles are iteratively removed (and added to the array of transactions that would need to be aborted to ensure serializability) until there are no cycles left. This task can be computationally expensive, therefore 8GB of RAM is required.
 
 -----
 
