@@ -44,7 +44,7 @@ All cycles of the graph are detected using [Johnson's algorithm](http://www.cs.t
   
 ### Caliper and test network
 
-If you do not have a Fabric network running already, you might want to use the benchmarking framework Hyperledger Caliper and the Hyperledger Fabric test network. A repository containing scripts, chaincodes, and a tutorial can be found [here](https://github.com/ninori9/caliper-workspace).
+If you do not have a Fabric network running already, you might want to use the benchmarking framework Hyperledger Caliper and the Hyperledger Fabric test network. A repository containing scripts, chaincodes, and a tutorial can be found [here](https://github.com/ninori9/caliper-workspace). The network has to contain certificate authorities to be able to register and enroll new users.
 
 ### Modify the [config.yaml](https://github.com/ninori9/GraphGenerationBackend/blob/master/config.yaml) file
 
