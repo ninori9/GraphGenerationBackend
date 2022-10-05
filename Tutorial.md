@@ -1,6 +1,6 @@
 # Set up of Fabric test network and Caliper
 This file is a tutorial on how to set up the Fabric test network and use it with the benchmarking framework Hyperledger Caliper.
-A repository, which facilitates this process and contains scripts, chaincodes, and workloads, can be found [here](https://github.com/ninori9/caliper-workspace). This is especially recommended for experimentation
+A repository, which facilitates this process and contains scripts, chaincodes, and workloads, can be found [here](https://github.com/ninori9/caliper-workspace). This is especially recommended for experimentation. The manual set up of the test network and Caliper is explained in the following.
 
 -----
 
