@@ -103,3 +103,25 @@ test:
 
 ### Run the benchmark
 Execute `npx caliper launch manager --caliper-workspace ./ --caliper-networkconfig networks/networkConfig.yaml --caliper-benchconfig benchmarks/config.yaml --caliper-flow-only-test --caliper-fabric-gateway-enabled --caliper-fabric-timeout-invokeorquery 110>`. The last parameter is only needed in the case of a low send rate and high block size to prevent timeout errors.
+
+-----
+
+# Folder structure
+The recommended final folder structure can be seen below.
+```    
+│
+└───caliper-workspace
+│       
+│   
+└───GraphGenerationBackend
+│       
+│   
+└───GraphGenerationFrontend
+│       
+│   
+└───fabric-samples
+│   │
+│   └───test-network
+│   │
+│   └───...
+```
