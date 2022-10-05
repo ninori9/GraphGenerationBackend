@@ -14,7 +14,7 @@ To be able to run a Hyperledger Fabric network on your machine, the installation
 This command clones the fabric-samples repository, and installs the required binaries and Docker images.
 
 ### Change to test network directory
-Execute `cd fabric-samples/test-network` to change to the directory of the test network. From here all the following commands can be executed.
+Execute `cd fabric-samples/test-network` to change to the directory of the test network. From here all the following commands related to the Fabric network can be executed.
 
 ### Adapt network configuration
 You can adapt parameters such as block size by editing the <strong>fabric-samples/test-network/configtx/configtx.yaml</strong> file.
@@ -67,7 +67,7 @@ organizations:
       certificates:
       - name: 'User1'
         clientPrivateKey:
-          path: '../fabric-samples/test-network/organizations/peerOrganizations/org1.example.com/users/User1@org1.example.com/msp/keystore/<PRIV_KEY_FILE_NAME_sk'
+          path: '../fabric-samples/test-network/organizations/peerOrganizations/org1.example.com/users/User1@org1.example.com/msp/keystore/<PRIV_KEY_FILE_NAME_sk>'
         clientSignedCert:
           path: '../fabric-samples/test-network/organizations/peerOrganizations/org1.example.com/users/User1@org1.example.com/msp/signcerts/cert.pem'
     connectionProfile:
@@ -76,7 +76,7 @@ organizations:
 
 ```
 
-Adapt the paths if you are not using the fabric-samples test network. In any case, you should adapt the client private key path and the id of the deployed chaincode.
+Adapt the paths if you are not using the fabric-samples test network. In any case, you should edit the client private key path and the id of the deployed chaincode.
 
 ### Create a workload
 In the <strong>workloads</strong> folder, create a .js file that describes the workload during benchmarking round. A tutorial on how to create such files can be found [here](https://hyperledger.github.io/caliper/v0.4.2/fabric-tutorial/tutorials-fabric-existing/#step-3---build-a-test-workload-module). You may also use other existing workload files.
@@ -98,7 +98,7 @@ test:
           opts:
             tps: 25
       workload:
-        module: benchmarks/generator/common.js
+        module: workloads/common.js
 ```
 
 ### Run the benchmark
