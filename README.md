@@ -2,6 +2,9 @@
 
 This project is written in JavaScript and Shell, uses Node.js, Express.js, and the Hyperledger Fabric SDK for Node.js, and serves as the backend for an application that generates transaction conflict graphs (also called precedence graphs or serializability graphs) from transactions of the Hyperledger Fabric blockchain.
 
+If the Hyperledger Fabric blockchain is running on a remote cluster, this project should be installed there.
+You may want to use `ssh -i ~/.ssh/id_rsa -L 3007:localhost:3007 <remote username>@<remote IP address>` to connect to the remote machine via SSH and run the app there.
+
 To see a visualization of the generated graphs, this app should be run together with the corresponding [frontend](https://github.com/ninori9/GraphGenerationFrontend).
 
 ## Endpoint
@@ -64,8 +67,6 @@ To run the application, execute the following command in the project directory:
 
 ### `npm start`
 Runs the app in the development mode.\
-If the Hyperledger Fabric blockchain is running on a remote cluster, this project should be installed there.
-You may want to use `ssh -i ~/.ssh/id_rsa -L 3007:localhost:3007 <remote username>@<remote IP address>` to connect to the remote machine via SSH and run the app there.
 Open [http://localhost:3007](http://localhost:3007) to access the backend endpoints it via the browser.
 
 Keep in mind that the [frontend](https://github.com/ninori9/GraphGenerationFrontend) should be run simultaneously. If it is, [http://localhost:3006](http://localhost:3006) can be visited to view the user interface and interact with the application.
