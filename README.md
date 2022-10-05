@@ -43,13 +43,11 @@ All cycles of the graph are detected using [Johnson's algorithm](http://www.cs.t
 ## How to use
   
 ### Caliper and test network
-
 If you do not have a Fabric network running already, you might want to use the benchmarking framework Hyperledger Caliper and the Hyperledger Fabric test network.
 A tutorial on how to setup the Fabric test network and Hyperledger Caliper is provided [here](https://github.com/ninori9/GraphGenerationBackend/blob/master/Tutorial.md).
-A repository containing scripts, chaincodes, and a tutorial can be found [here](https://github.com/ninori9/caliper-workspace). The network has to contain certificate authorities to be able to register and enroll new users.
+The network has to contain certificate authorities to be able to register and enroll new users.
 
 ### Modify the [config.yaml](https://github.com/ninori9/GraphGenerationBackend/blob/master/config.yaml) file
-
 The [config.yaml](https://github.com/ninori9/GraphGenerationBackend/blob/master/config.yaml) file should be edited by the user before using the application. The variables need to be adapted based on the Hyperledger Fabric network under test. 
 
 If the application is used to generate graphs from a network deployed using [HyperledgerLab](https://github.com/MSRG/HyperLedgerLab-2.0), the variable <strong>HyperledgerLab</strong> should be set to true. Make sure the [connection profile](https://github.com/ninori9/GraphGenerationBackend/blob/master/blockchain_data/log_extraction/connectionprofile.yaml) matches the HyperledgerLab network.
@@ -57,17 +55,14 @@ If the application is used to generate graphs from a network deployed using [Hyp
 Otherwise, the path to the common connection profile of the network, which may be a .json or .yaml file, needs to be specified (<strong>ccp_path</strong> variable). Depending on whether a client and its crypto store are defined in the common connection profile (<strong>client_and_cryptoStore</strong> variable), different methods to retrieve the transaction data are used. By default, a connection is established without using a predefined client, hence the <strong>channel</strong> and <strong>certificateAuthority</strong> variables need to be provided.
   
 ### Before running for the first time
-  
 If you start the backend for the first time, run the following command (may take several minutes):
 
 ### `npm install`
 
 ### Start application
-
 To run the application, execute the following command in the project directory:
 
 ### `npm start`
-
 Runs the app in the development mode.\
 If the Hyperledger Fabric blockchain is running on a remote cluster, this project should be installed there.
 You may want to use `ssh -i ~/.ssh/id_rsa -L 3007:localhost:3007 <remote username>@<remote IP address>` to connect to the remote machine via SSH and run the app there.
