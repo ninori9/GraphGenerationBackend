@@ -40,7 +40,7 @@ You may also want to use the official [documentation](https://hyperledger.github
 In this folder, there should be three folder: <strong>networks</strong>, <strong>benchmarks</strong>, and <strong>workload</strong>.
 
 
-In any case, before using Caliper for the first time, execute the following two commands in the project directory of this repository (caliper-workspace):
+In any case, before using Caliper for the first time, execute the following two commands in the caliper-workspace directory:
 
 ### `npm install --only=prod @hyperledger/caliper-cli@0.5.0`
 
